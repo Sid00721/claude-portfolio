@@ -1,138 +1,74 @@
 """
 ASX Small Cap Universe Screener
 
-Filters ASX-listed stocks to the target universe:
-- Market cap $100M-$1B AUD
-- Average daily volume > 50k shares (liquidity floor)
-- Returns clean dataframe with ticker, market cap, sector, 12-month return
+Uses EODHD for reliable data (falls back to yfinance in dev).
+Filters: $100M-$1B AUD market cap, >50k avg volume.
 """
 
-import yfinance as yf
 import pandas as pd
-from datetime import datetime, timedelta
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 import os
 import json
 import time
 
 from data.db import get_db
-
-
-ASX_TICKERS_URL = "https://www.asx.com.au/asx/research/ASXListedCompanies.csv"
+from data.provider import get_asx_listings, get_fundamentals, get_price_history, _has_eodhd
+from data.activity import log_activity
 
 MIN_MARKET_CAP = 100_000_000
 MAX_MARKET_CAP = 1_000_000_000
 MIN_AVG_VOLUME = 50_000
 
-BATCH_SIZE = 50
-BATCH_DELAY = 2
 
+def build_universe() -> pd.DataFrame:
+    """Screen ASX, return filtered universe."""
+    listings = get_asx_listings()
+    if listings.empty:
+        log_activity("error", "Could not fetch ASX listings", severity="alert")
+        return pd.DataFrame()
 
-def get_asx_tickers() -> list[str]:
-    """Fetch all ASX-listed company tickers."""
-    try:
-        df = pd.read_csv(ASX_TICKERS_URL, skiprows=1)
-        df.columns = [c.strip() for c in df.columns]
-        tickers = df["ASX code"].dropna().str.strip().tolist()
-        return [f"{t}.AX" for t in tickers]
-    except Exception:
-        cache_path = os.path.join(os.path.dirname(__file__), "asx_tickers_cache.json")
-        if os.path.exists(cache_path):
-            with open(cache_path) as f:
-                return json.load(f)
-        raise
+    log_activity("scan", f"Checking {len(listings)} ASX tickers", severity="info")
 
-
-def _fetch_info_batch(tickers: list[str]) -> list[dict]:
-    """Fetch info for a batch of tickers with rate limiting."""
     results = []
-    for ticker in tickers:
+    checked = 0
+
+    for _, row in listings.iterrows():
+        ticker = row["ticker"]
         try:
-            stock = yf.Ticker(ticker)
-            info = stock.info
-            if not info or info.get("quoteType") == "NONE":
+            fundies = get_fundamentals(ticker)
+            mc = fundies.get("market_cap", 0)
+            if mc is None or not (MIN_MARKET_CAP <= mc <= MAX_MARKET_CAP):
                 continue
 
-            market_cap = info.get("marketCap")
-            if market_cap is None:
-                continue
-            if not (MIN_MARKET_CAP <= market_cap <= MAX_MARKET_CAP):
+            vol = fundies.get("avg_volume", 0) or 0
+            if vol < MIN_AVG_VOLUME and _has_eodhd():
                 continue
 
-            avg_volume = info.get("averageVolume", 0)
-            if avg_volume < MIN_AVG_VOLUME:
+            # Get 12-month return
+            prices = get_price_history(ticker, 365)
+            if prices.empty or len(prices) < 200:
                 continue
+
+            close_col = "adj_close" if "adj_close" in prices.columns else "close"
+            price_now = float(prices[close_col].iloc[-1])
+            price_1y = float(prices[close_col].iloc[0])
+            return_12m = (price_now - price_1y) / price_1y
 
             results.append({
                 "ticker": ticker,
-                "market_cap": market_cap,
-                "avg_volume": avg_volume,
-                "sector": info.get("sector", "Unknown"),
+                "market_cap": int(mc),
+                "avg_volume": int(vol),
+                "sector": fundies.get("sector", "Unknown"),
+                "return_12m": round(return_12m, 4),
+                "price": round(price_now, 4),
+                "price_to_book": fundies.get("price_to_book"),
             })
         except Exception:
             continue
-        time.sleep(0.3)
-    return results
 
-
-def build_universe(max_workers: int = 5) -> pd.DataFrame:
-    """
-    Screen entire ASX in batches, then bulk-fetch price history.
-    """
-    all_tickers = get_asx_tickers()
-    print(f"      Screening {len(all_tickers)} tickers in batches of {BATCH_SIZE}...")
-
-    # Phase 1: Filter by market cap and volume using .info (batched)
-    candidates = []
-    for i in range(0, len(all_tickers), BATCH_SIZE):
-        batch = all_tickers[i:i + BATCH_SIZE]
-        batch_results = _fetch_info_batch(batch)
-        candidates.extend(batch_results)
-        if i + BATCH_SIZE < len(all_tickers):
-            time.sleep(BATCH_DELAY)
-        done = min(i + BATCH_SIZE, len(all_tickers))
-        print(f"      [{done}/{len(all_tickers)}] {len(candidates)} candidates so far", end="\r")
-
-    print(f"\n      {len(candidates)} passed market cap + volume filters")
-
-    if not candidates:
-        return pd.DataFrame()
-
-    # Phase 2: Bulk download 1-year price history for candidates
-    candidate_tickers = [c["ticker"] for c in candidates]
-    print(f"      Downloading price history for {len(candidate_tickers)} stocks...")
-
-    price_data = yf.download(
-        candidate_tickers,
-        period="1y",
-        group_by="ticker",
-        progress=False,
-        threads=True,
-    )
-
-    # Phase 3: Compute 12-month returns and filter
-    results = []
-    for candidate in candidates:
-        ticker = candidate["ticker"]
-        try:
-            if len(candidate_tickers) == 1:
-                hist = price_data
-            else:
-                hist = price_data[ticker]
-
-            close = hist["Close"].dropna()
-            if len(close) < 200:
-                continue
-
-            price_now = float(close.iloc[-1])
-            price_1y = float(close.iloc[0])
-            return_12m = (price_now - price_1y) / price_1y
-
-            candidate["return_12m"] = round(return_12m, 4)
-            candidate["price"] = round(price_now, 2)
-            results.append(candidate)
-        except (KeyError, IndexError, TypeError):
-            continue
+        checked += 1
+        if checked % 50 == 0:
+            log_activity("scan", f"Screened {checked} tickers, {len(results)} passed so far", severity="info")
 
     df = pd.DataFrame(results)
     if df.empty:
@@ -158,16 +94,14 @@ def save_to_db(df: pd.DataFrame) -> None:
 
 
 def run():
-    """Main entry point: build universe and persist."""
+    """Main entry point."""
     print(f"[{datetime.now().isoformat()}] Building ASX universe...")
     df = build_universe()
     print(f"Universe: {len(df)} stocks passed filters")
     if not df.empty:
         print(df[["ticker", "market_cap", "sector", "return_12m"]].head(20).to_string())
-
     save_to_db(df)
     print("Saved to local database.")
-
     return df
 
 

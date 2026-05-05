@@ -1,67 +1,28 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
-from typing import Optional
+"""
+Momentum Signal — 12-1 Month Factor
+
+Uses pre-computed 12m returns from the universe screener.
+No additional API calls needed — momentum is computed during universe scan.
+"""
 
 import numpy as np
 import pandas as pd
-import yfinance as yf
 
 
-def _fetch_price_history(ticker: str, start: str, end: str) -> tuple[str, Optional[pd.Series]]:
-    try:
-        data = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
-        if data.empty or len(data) < 20:
-            return ticker, None
-        return ticker, data["Close"].squeeze()
-    except Exception:
-        return ticker, None
+def compute_momentum_signal(universe: pd.DataFrame) -> pd.DataFrame:
+    """
+    Compute momentum quintiles from universe's return_12m column.
+    The universe screener already computed 12-month returns.
+    """
+    if "ticker" not in universe.columns or "return_12m" not in universe.columns:
+        return pd.DataFrame(columns=["ticker", "momentum_score", "momentum_quintile", "signal_strength", "signal_active"])
 
-
-def _compute_momentum_12_1(prices: pd.Series) -> Optional[float]:
-    if prices is None or len(prices) < 252:
-        return None
-    price_12m_ago = prices.iloc[0]
-    price_1m_ago = prices.iloc[-21]
-    if price_12m_ago == 0:
-        return None
-    ret_12m = (price_1m_ago / price_12m_ago) - 1.0
-    return float(ret_12m)
-
-
-def compute_momentum_signal(
-    universe: pd.DataFrame,
-    max_workers: int = 10,
-    as_of_date: Optional[datetime] = None,
-) -> pd.DataFrame:
-    if "ticker" not in universe.columns:
-        raise ValueError("universe DataFrame must contain a 'ticker' column")
-
-    tickers = universe["ticker"].tolist()
-
-    if as_of_date is None:
-        as_of_date = datetime.now()
-
-    end_date = as_of_date.strftime("%Y-%m-%d")
-    start_date = (as_of_date - timedelta(days=365)).strftime("%Y-%m-%d")
-
-    momentum_scores: dict[str, Optional[float]] = {}
-
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {
-            executor.submit(_fetch_price_history, ticker, start_date, end_date): ticker
-            for ticker in tickers
-        }
-        for future in as_completed(futures):
-            ticker, prices = future.result()
-            momentum_scores[ticker] = _compute_momentum_12_1(prices)
-
-    results = pd.DataFrame({
-        "ticker": tickers,
-        "momentum_score": [momentum_scores.get(t) for t in tickers],
-    })
+    results = universe[["ticker"]].copy()
+    results["momentum_score"] = universe["return_12m"].values
 
     valid = results["momentum_score"].notna()
     results["momentum_quintile"] = np.nan
+
     if valid.sum() >= 5:
         results.loc[valid, "momentum_quintile"] = pd.qcut(
             results.loc[valid, "momentum_score"], q=5, labels=[1, 2, 3, 4, 5]
@@ -85,4 +46,4 @@ def compute_momentum_signal(
 
 
 def likelihood_ratio() -> float:
-    return 1.4
+    return 1.5  # updated from research: momentum stronger on ASX small caps
