@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+data/transcripts/
+data/cache/
+*.json.bak
+*.db
+.DS_Store

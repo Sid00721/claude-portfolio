@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Claude Portfolio</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: #0a0a0f;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+        header {
+            text-align: center;
+            padding: 3rem 0 2rem;
+            border-bottom: 1px solid #1a1a2e;
+        }
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 0.5rem;
+        }
+        header p {
+            color: #888;
+            font-size: 1.1rem;
+        }
+        .badge {
+            display: inline-block;
+            background: #1a1a2e;
+            border: 1px solid #2a2a4e;
+            color: #7c8aff;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            margin-top: 0.75rem;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        .metric-card {
+            background: #12121a;
+            border: 1px solid #1a1a2e;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .metric-card .label { color: #888; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .metric-card .value { font-size: 2rem; font-weight: 700; color: #fff; margin-top: 0.25rem; }
+        .metric-card .value.positive { color: #4ade80; }
+        .metric-card .value.negative { color: #f87171; }
+
+        .chart-container {
+            background: #12121a;
+            border: 1px solid #1a1a2e;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            min-height: 250px;
+        }
+        .chart-container h3 { color: #fff; margin-bottom: 1rem; }
+        canvas { width: 100% !important; }
+
+        .section { margin: 2rem 0; }
+        .section h2 { color: #fff; font-size: 1.3rem; margin-bottom: 1rem; }
+
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #1a1a2e; }
+        th { color: #888; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        td { color: #e0e0e0; font-size: 0.9rem; }
+        .positive { color: #4ade80; }
+        .negative { color: #f87171; }
+
+        .positions-table { background: #12121a; border: 1px solid #1a1a2e; border-radius: 12px; overflow: hidden; }
+        .positions-table table { margin: 0; }
+
+        .empty-state { text-align: center; color: #666; padding: 3rem; }
+
+        footer {
+            text-align: center;
+            padding: 3rem 0;
+            color: #555;
+            font-size: 0.85rem;
+            border-top: 1px solid #1a1a2e;
+            margin-top: 3rem;
+        }
+        footer a { color: #7c8aff; text-decoration: none; }
+
+        .how-it-works {
+            background: #12121a;
+            border: 1px solid #1a1a2e;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+        .how-it-works h3 { color: #fff; margin-bottom: 1rem; }
+        .how-it-works .step { display: flex; gap: 1rem; margin-bottom: 1rem; }
+        .how-it-works .step-num {
+            width: 28px; height: 28px; border-radius: 50%; background: #1a1a2e;
+            color: #7c8aff; display: flex; align-items: center; justify-content: center;
+            font-size: 0.8rem; font-weight: 700; flex-shrink: 0;
+        }
+        .how-it-works .step-text { color: #aaa; font-size: 0.9rem; line-height: 1.5; }
+
+        @media (max-width: 600px) {
+            header h1 { font-size: 1.8rem; }
+            .metrics { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>The Claude Portfolio</h1>
+            <p>Fully autonomous ASX small cap trading system</p>
+            <span class="badge">Paper Trading &middot; $500 AUD</span>
+        </header>
+
+        <div class="metrics">
+            <div class="metric-card">
+                <div class="label">Portfolio Value</div>
+                <div class="value" id="nav">$500.00</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Total Return</div>
+                <div class="value" id="total-return">0.00%</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Positions</div>
+                <div class="value" id="num-positions">0</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Cash</div>
+                <div class="value" id="cash">$500.00</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h3>Equity Curve</h3>
+            <canvas id="equity-chart"></canvas>
+            <p class="empty-state" id="chart-empty">Pipeline hasn't run yet. First data point appears after first daily run.</p>
+        </div>
+
+        <div class="section">
+            <h2>Current Positions</h2>
+            <div class="positions-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Ticker</th>
+                            <th>Shares</th>
+                            <th>Avg Cost</th>
+                            <th>Price</th>
+                            <th>Value</th>
+                            <th>P&L</th>
+                            <th>Return</th>
+                        </tr>
+                    </thead>
+                    <tbody id="positions-body">
+                        <tr><td colspan="7" class="empty-state">No open positions</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="how-it-works">
+            <h3>How It Works</h3>
+            <div class="step">
+                <div class="step-num">1</div>
+                <div class="step-text"><strong>Universe Filter</strong> &mdash; Screens ASX for $100M-$1B market cap small caps with sufficient liquidity. Currently tracking 148 stocks.</div>
+            </div>
+            <div class="step">
+                <div class="step-num">2</div>
+                <div class="step-text"><strong>Regime Detection</strong> &mdash; Monitors VIX and yield curve. Goes to cash in high volatility environments. Only trades in favorable regimes.</div>
+            </div>
+            <div class="step">
+                <div class="step-num">3</div>
+                <div class="step-text"><strong>Signal Stack</strong> &mdash; Runs 5 independent signals: momentum, insider buying, LLM sentiment analysis, risk factor changes, and alternative data.</div>
+            </div>
+            <div class="step">
+                <div class="step-num">4</div>
+                <div class="step-text"><strong>Bayesian Aggregation</strong> &mdash; Combines signals using Bayes' theorem. Only trades when posterior probability exceeds 75%.</div>
+            </div>
+            <div class="step">
+                <div class="step-num">5</div>
+                <div class="step-text"><strong>Kelly Sizing</strong> &mdash; Uses half-Kelly criterion for position sizing. Max 15% per position. 2x ATR stop losses.</div>
+            </div>
+            <div class="step">
+                <div class="step-num">6</div>
+                <div class="step-text"><strong>Self-Improvement</strong> &mdash; Logs every trade and signal. After 90 days, kills weak signals and weights strong ones higher.</div>
+            </div>
+        </div>
+
+        <footer>
+            Built with Claude &middot; Fully autonomous &middot; No human intervention
+            <br><br>
+            <a href="/api/portfolio">API</a> &middot; <a href="/api/trades">Trades</a> &middot; <a href="/api/universe">Universe</a>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script>
+        async function loadData() {
+            try {
+                const res = await fetch('/api/portfolio');
+                const data = await res.json();
+
+                document.getElementById('nav').textContent = `$${data.nav.toFixed(2)}`;
+                document.getElementById('cash').textContent = `$${data.cash.toFixed(2)}`;
+                document.getElementById('num-positions').textContent = data.positions.length;
+
+                const retEl = document.getElementById('total-return');
+                retEl.textContent = `${data.total_return_pct >= 0 ? '+' : ''}${data.total_return_pct.toFixed(2)}%`;
+                retEl.className = `value ${data.total_return_pct >= 0 ? 'positive' : 'negative'}`;
+
+                // Positions table
+                const tbody = document.getElementById('positions-body');
+                if (data.positions.length > 0) {
+                    tbody.innerHTML = data.positions.map(p => `
+                        <tr>
+                            <td><strong>${p.ticker}</strong></td>
+                            <td>${p.quantity}</td>
+                            <td>$${p.avg_cost.toFixed(4)}</td>
+                            <td>$${p.current_price.toFixed(4)}</td>
+                            <td>$${p.market_value.toFixed(2)}</td>
+                            <td class="${p.pnl >= 0 ? 'positive' : 'negative'}">$${p.pnl.toFixed(2)}</td>
+                            <td class="${p.return_pct >= 0 ? 'positive' : 'negative'}">${p.return_pct.toFixed(1)}%</td>
+                        </tr>
+                    `).join('');
+                }
+
+                // Equity curve
+                if (data.equity_curve.length > 0) {
+                    document.getElementById('chart-empty').style.display = 'none';
+                    const ctx = document.getElementById('equity-chart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: data.equity_curve.map(p => p.date),
+                            datasets: [{
+                                label: 'Portfolio NAV',
+                                data: data.equity_curve.map(p => p.nav),
+                                borderColor: '#7c8aff',
+                                backgroundColor: 'rgba(124, 138, 255, 0.1)',
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: 2,
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                x: { grid: { color: '#1a1a2e' }, ticks: { color: '#666' } },
+                                y: { grid: { color: '#1a1a2e' }, ticks: { color: '#666', callback: v => '$' + v } }
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('Failed to load data:', e);
+            }
+        }
+
+        loadData();
+        setInterval(loadData, 60000);
+    </script>
+</body>
+</html>
