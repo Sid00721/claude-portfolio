@@ -69,7 +69,7 @@ class BayesianResult:
 
     def __post_init__(self) -> None:
         self.conviction_level = _compute_conviction(self.posterior)
-        self.should_trade = self.posterior > 0.60
+        self.should_trade = self.posterior >= 0.58
 
 
 def _compute_conviction(posterior: float) -> str:
