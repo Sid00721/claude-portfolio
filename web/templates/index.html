@@ -1,341 +1,292 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Claude Portfolio</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-            background: #0a0a0f;
-            color: #e0e0e0;
-            min-height: 100vh;
-        }
-        .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
-
-        header {
-            text-align: center;
-            padding: 3rem 0 2rem;
-            border-bottom: 1px solid #1a1a2e;
-        }
-        header h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: #fff;
-            margin-bottom: 0.5rem;
-        }
-        header p {
-            color: #888;
-            font-size: 1.1rem;
-        }
-        .badge {
-            display: inline-block;
-            background: #1a1a2e;
-            border: 1px solid #2a2a4e;
-            color: #7c8aff;
-            padding: 0.25rem 0.75rem;
-            border-radius: 999px;
-            font-size: 0.8rem;
-            margin-top: 0.75rem;
-        }
-
-        .metrics {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin: 2rem 0;
-        }
-        .metric-card {
-            background: #12121a;
-            border: 1px solid #1a1a2e;
-            border-radius: 12px;
-            padding: 1.5rem;
-            text-align: center;
-        }
-        .metric-card .label { color: #888; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
-        .metric-card .value { font-size: 2rem; font-weight: 700; color: #fff; margin-top: 0.25rem; }
-        .metric-card .value.positive { color: #4ade80; }
-        .metric-card .value.negative { color: #f87171; }
-
-        .chart-container {
-            background: #12121a;
-            border: 1px solid #1a1a2e;
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin: 2rem 0;
-            min-height: 250px;
-        }
-        .chart-container h3 { color: #fff; margin-bottom: 1rem; }
-        canvas { width: 100% !important; }
-
-        .section { margin: 2rem 0; }
-        .section h2 { color: #fff; font-size: 1.3rem; margin-bottom: 1rem; }
-
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #1a1a2e; }
-        th { color: #888; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
-        td { color: #e0e0e0; font-size: 0.9rem; }
-        .positive { color: #4ade80; }
-        .negative { color: #f87171; }
-
-        .positions-table { background: #12121a; border: 1px solid #1a1a2e; border-radius: 12px; overflow: hidden; }
-        .positions-table table { margin: 0; }
-
-        .empty-state { text-align: center; color: #666; padding: 3rem; }
-
-        footer {
-            text-align: center;
-            padding: 3rem 0;
-            color: #555;
-            font-size: 0.85rem;
-            border-top: 1px solid #1a1a2e;
-            margin-top: 3rem;
-        }
-        footer a { color: #7c8aff; text-decoration: none; }
-
-        .how-it-works {
-            background: #12121a;
-            border: 1px solid #1a1a2e;
-            border-radius: 12px;
-            padding: 2rem;
-            margin: 2rem 0;
-        }
-        .how-it-works h3 { color: #fff; margin-bottom: 1rem; }
-        .how-it-works .step { display: flex; gap: 1rem; margin-bottom: 1rem; }
-        .how-it-works .step-num {
-            width: 28px; height: 28px; border-radius: 50%; background: #1a1a2e;
-            color: #7c8aff; display: flex; align-items: center; justify-content: center;
-            font-size: 0.8rem; font-weight: 700; flex-shrink: 0;
-        }
-        .how-it-works .step-text { color: #aaa; font-size: 0.9rem; line-height: 1.5; }
-
-        .invest-section {
-            background: #12121a;
-            border: 1px solid #1a1a2e;
-            border-radius: 12px;
-            padding: 2rem;
-            margin: 2rem 0;
-        }
-        .invest-section h2 { color: #fff; margin-bottom: 0.5rem; }
-        .section-desc { color: #888; font-size: 0.9rem; margin-bottom: 1.5rem; }
-
-        .tab-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-        .tab {
-            background: #1a1a2e; border: 1px solid #2a2a4e; color: #888;
-            padding: 0.5rem 1.5rem; border-radius: 8px; cursor: pointer; font-size: 0.9rem;
-        }
-        .tab.active { background: #2a2a4e; color: #fff; }
-
-        .form-card { display: flex; flex-direction: column; gap: 0.75rem; max-width: 360px; }
-        .form-card input {
-            background: #0a0a0f; border: 1px solid #2a2a4e; color: #fff;
-            padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.9rem;
-        }
-        .form-card button, .deposit-withdraw button {
-            background: #7c8aff; color: #fff; border: none; padding: 0.75rem 1.5rem;
-            border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem;
-        }
-        .form-card button:hover, .deposit-withdraw button:hover { background: #5a6ae0; }
-        .form-error { color: #f87171; font-size: 0.85rem; }
-        .form-success { color: #4ade80; font-size: 0.85rem; }
-
-        .deposit-withdraw {
-            display: flex; gap: 0.75rem; align-items: center; margin-top: 1.5rem; flex-wrap: wrap;
-        }
-        .deposit-withdraw input {
-            background: #0a0a0f; border: 1px solid #2a2a4e; color: #fff;
-            padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.9rem; width: 150px;
-        }
-        .btn-withdraw { background: #374151 !important; }
-        .btn-withdraw:hover { background: #4b5563 !important; }
-        .btn-logout {
-            background: none; border: 1px solid #333; color: #666;
-            padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer;
-            font-size: 0.8rem; margin-top: 1.5rem;
-        }
-
-        @media (max-width: 600px) {
-            header h1 { font-size: 1.8rem; }
-            .metrics { grid-template-columns: repeat(2, 1fr); }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>The Claude Portfolio</h1>
-            <p>Fully autonomous ASX small cap trading system</p>
-            <span class="badge">Paper Trading &middot; $500 AUD</span>
-        </header>
-
-        <div class="metrics">
-            <div class="metric-card">
-                <div class="label">Portfolio Value</div>
-                <div class="value" id="nav">$500.00</div>
-            </div>
-            <div class="metric-card">
-                <div class="label">Total Return</div>
-                <div class="value" id="total-return">0.00%</div>
-            </div>
-            <div class="metric-card">
-                <div class="label">Positions</div>
-                <div class="value" id="num-positions">0</div>
-            </div>
-            <div class="metric-card">
-                <div class="label">Cash</div>
-                <div class="value" id="cash">$500.00</div>
-            </div>
-        </div>
-
-        <div class="chart-container">
-            <h3>Equity Curve</h3>
-            <canvas id="equity-chart"></canvas>
-            <p class="empty-state" id="chart-empty">Pipeline hasn't run yet. First data point appears after first daily run.</p>
-        </div>
-
-        <div class="section">
-            <h2>Current Positions</h2>
-            <div class="positions-table">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Ticker</th>
-                            <th>Shares</th>
-                            <th>Avg Cost</th>
-                            <th>Price</th>
-                            <th>Value</th>
-                            <th>P&L</th>
-                            <th>Return</th>
-                        </tr>
-                    </thead>
-                    <tbody id="positions-body">
-                        <tr><td colspan="7" class="empty-state">No open positions</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="invest-section" id="invest-section">
-            <h2>Invest in the Fund</h2>
-            <p class="section-desc">Virtual paper money. Your returns track the fund proportionally via unit pricing.</p>
-
-            <div id="auth-forms">
-                <div class="tab-bar">
-                    <button class="tab active" onclick="showTab('login')">Login</button>
-                    <button class="tab" onclick="showTab('register')">Register</button>
-                </div>
-
-                <div id="login-form" class="form-card">
-                    <input type="email" id="login-email" placeholder="Email" />
-                    <input type="password" id="login-password" placeholder="Password" />
-                    <button onclick="login()">Login</button>
-                    <p class="form-error" id="login-error"></p>
-                </div>
-
-                <div id="register-form" class="form-card" style="display:none">
-                    <input type="text" id="reg-name" placeholder="Name" />
-                    <input type="email" id="reg-email" placeholder="Email" />
-                    <input type="password" id="reg-password" placeholder="Password" />
-                    <button onclick="register()">Create Account</button>
-                    <p class="form-error" id="reg-error"></p>
-                </div>
-            </div>
-
-            <div id="investor-dashboard" style="display:none">
-                <div class="metrics" style="margin-top:1rem">
-                    <div class="metric-card">
-                        <div class="label">Your Value</div>
-                        <div class="value" id="my-value">$0.00</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="label">Your Return</div>
-                        <div class="value" id="my-return">0.0%</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="label">Your Shares</div>
-                        <div class="value" id="my-shares">0</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="label">NAV/Share</div>
-                        <div class="value" id="my-navps">$1.00</div>
-                    </div>
-                </div>
-
-                <div class="deposit-withdraw">
-                    <input type="number" id="txn-amount" placeholder="Amount ($)" min="1" step="1" />
-                    <button class="btn-deposit" onclick="doDeposit()">Deposit</button>
-                    <button class="btn-withdraw" onclick="doWithdraw()">Withdraw</button>
-                </div>
-                <p class="form-error" id="txn-error"></p>
-                <p class="form-success" id="txn-success"></p>
-
-                <button class="btn-logout" onclick="logout()">Logout</button>
-            </div>
-        </div>
-
-        <div class="how-it-works">
-            <h3>How It Works</h3>
-            <div class="step">
-                <div class="step-num">1</div>
-                <div class="step-text"><strong>Universe Filter</strong> &mdash; Screens ASX for $100M-$1B market cap small caps with sufficient liquidity. Currently tracking 148 stocks.</div>
-            </div>
-            <div class="step">
-                <div class="step-num">2</div>
-                <div class="step-text"><strong>Regime Detection</strong> &mdash; Monitors VIX and yield curve. Goes to cash in high volatility environments. Only trades in favorable regimes.</div>
-            </div>
-            <div class="step">
-                <div class="step-num">3</div>
-                <div class="step-text"><strong>Signal Stack</strong> &mdash; Runs 5 independent signals: momentum, insider buying, LLM sentiment analysis, risk factor changes, and alternative data.</div>
-            </div>
-            <div class="step">
-                <div class="step-num">4</div>
-                <div class="step-text"><strong>Bayesian Aggregation</strong> &mdash; Combines signals using Bayes' theorem. Only trades when posterior probability exceeds 75%.</div>
-            </div>
-            <div class="step">
-                <div class="step-num">5</div>
-                <div class="step-text"><strong>Kelly Sizing</strong> &mdash; Uses half-Kelly criterion for position sizing. Max 15% per position. 2x ATR stop losses.</div>
-            </div>
-            <div class="step">
-                <div class="step-num">6</div>
-                <div class="step-text"><strong>Self-Improvement</strong> &mdash; Logs every trade and signal. After 90 days, kills weak signals and weights strong ones higher.</div>
-            </div>
-        </div>
-
-        <footer>
-            Built with Claude &middot; Fully autonomous &middot; No human intervention
-            <br><br>
-            <a href="/api/portfolio">API</a> &middot; <a href="/api/trades">Trades</a> &middot; <a href="/api/universe">Universe</a>
-        </footer>
-    </div>
-
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        surface: { 1: '#09090b', 2: '#18181b', 3: '#27272a' },
+                        accent: { DEFAULT: '#6366f1', light: '#818cf8' },
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .glass { background: rgba(24, 24, 27, 0.8); backdrop-filter: blur(12px); }
+        .glow { box-shadow: 0 0 40px rgba(99, 102, 241, 0.1); }
+        input:focus { outline: none; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.5); }
+    </style>
+</head>
+<body class="bg-surface-1 text-zinc-200 min-h-screen antialiased">
+
+    <!-- Nav -->
+    <nav class="fixed top-0 w-full z-50 glass border-b border-zinc-800/50">
+        <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-accent-light" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2L2 7l8 5 8-5-8-5zM2 13l8 5 8-5M2 17l8 5 8-5"/></svg>
+                </div>
+                <span class="font-semibold text-white">The Claude Portfolio</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-xs text-zinc-500 hidden sm:block">Autonomous ASX Quant Fund</span>
+                <span class="px-2 py-1 text-xs rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">LIVE</span>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-6 pt-20 pb-16">
+
+        <!-- Hero Metrics -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            <div class="bg-surface-2 border border-zinc-800 rounded-xl p-5">
+                <p class="text-xs text-zinc-500 uppercase tracking-wider mb-1">Fund NAV</p>
+                <p class="text-2xl font-bold text-white mono" id="nav">$500.00</p>
+            </div>
+            <div class="bg-surface-2 border border-zinc-800 rounded-xl p-5">
+                <p class="text-xs text-zinc-500 uppercase tracking-wider mb-1">Total Return</p>
+                <p class="text-2xl font-bold mono" id="total-return">+0.00%</p>
+            </div>
+            <div class="bg-surface-2 border border-zinc-800 rounded-xl p-5">
+                <p class="text-xs text-zinc-500 uppercase tracking-wider mb-1">Positions</p>
+                <p class="text-2xl font-bold text-white mono" id="num-positions">0</p>
+            </div>
+            <div class="bg-surface-2 border border-zinc-800 rounded-xl p-5">
+                <p class="text-xs text-zinc-500 uppercase tracking-wider mb-1">Cash</p>
+                <p class="text-2xl font-bold text-white mono" id="cash">$500.00</p>
+            </div>
+        </div>
+
+        <!-- Fund Stats Bar -->
+        <div class="flex flex-wrap gap-6 mb-8 px-1 text-sm text-zinc-400">
+            <span>NAV/Share: <span class="text-white mono" id="fund-navps">$1.0000</span></span>
+            <span>Investors: <span class="text-white mono" id="fund-investors">0</span></span>
+            <span>Universe: <span class="text-white mono" id="fund-universe">148 stocks</span></span>
+        </div>
+
+        <!-- Chart -->
+        <div class="bg-surface-2 border border-zinc-800 rounded-xl p-6 mb-6 glow">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-sm font-medium text-zinc-400">Equity Curve</h2>
+                <div class="flex gap-2">
+                    <button class="px-3 py-1 text-xs rounded-lg bg-surface-3 text-zinc-400 hover:text-white transition">1M</button>
+                    <button class="px-3 py-1 text-xs rounded-lg bg-accent/20 text-accent-light">ALL</button>
+                </div>
+            </div>
+            <div class="h-64">
+                <canvas id="equity-chart"></canvas>
+            </div>
+            <p class="text-center text-zinc-600 text-sm mt-4" id="chart-empty">Awaiting first daily pipeline run...</p>
+        </div>
+
+        <!-- Two Column: Positions + Invest -->
+        <div class="grid lg:grid-cols-3 gap-6 mb-6">
+
+            <!-- Positions -->
+            <div class="lg:col-span-2 bg-surface-2 border border-zinc-800 rounded-xl overflow-hidden">
+                <div class="px-6 py-4 border-b border-zinc-800">
+                    <h2 class="text-sm font-medium text-zinc-400">Open Positions</h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-xs text-zinc-500 uppercase tracking-wider">
+                                <th class="px-6 py-3 text-left">Ticker</th>
+                                <th class="px-4 py-3 text-right">Shares</th>
+                                <th class="px-4 py-3 text-right">Cost</th>
+                                <th class="px-4 py-3 text-right">Price</th>
+                                <th class="px-4 py-3 text-right">P&L</th>
+                                <th class="px-4 py-3 text-right">Return</th>
+                            </tr>
+                        </thead>
+                        <tbody id="positions-body" class="divide-y divide-zinc-800/50">
+                            <tr><td colspan="6" class="px-6 py-8 text-center text-zinc-600">No open positions yet</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Invest Card -->
+            <div class="bg-surface-2 border border-zinc-800 rounded-xl p-6">
+                <h2 class="text-sm font-medium text-zinc-400 mb-4">Invest in the Fund</h2>
+                <p class="text-xs text-zinc-600 mb-4">Virtual money. Returns track the fund via unit pricing.</p>
+
+                <div id="auth-forms">
+                    <div class="flex gap-1 mb-4 bg-surface-3 p-1 rounded-lg">
+                        <button onclick="showTab('login')" id="tab-login" class="flex-1 py-2 text-xs rounded-md bg-surface-2 text-white transition">Login</button>
+                        <button onclick="showTab('register')" id="tab-register" class="flex-1 py-2 text-xs rounded-md text-zinc-400 hover:text-white transition">Register</button>
+                    </div>
+
+                    <div id="login-form" class="space-y-3">
+                        <input type="email" id="login-email" placeholder="Email" class="w-full px-4 py-2.5 bg-surface-1 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500" />
+                        <input type="password" id="login-password" placeholder="Password" class="w-full px-4 py-2.5 bg-surface-1 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500" />
+                        <button onclick="login()" class="w-full py-2.5 bg-accent hover:bg-accent/80 text-white text-sm font-medium rounded-lg transition">Login</button>
+                        <p class="text-xs text-red-400" id="login-error"></p>
+                    </div>
+
+                    <div id="register-form" class="space-y-3 hidden">
+                        <input type="text" id="reg-name" placeholder="Name" class="w-full px-4 py-2.5 bg-surface-1 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500" />
+                        <input type="email" id="reg-email" placeholder="Email" class="w-full px-4 py-2.5 bg-surface-1 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500" />
+                        <input type="password" id="reg-password" placeholder="Password" class="w-full px-4 py-2.5 bg-surface-1 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500" />
+                        <button onclick="register()" class="w-full py-2.5 bg-accent hover:bg-accent/80 text-white text-sm font-medium rounded-lg transition">Create Account</button>
+                        <p class="text-xs text-red-400" id="reg-error"></p>
+                    </div>
+                </div>
+
+                <div id="investor-dashboard" class="hidden">
+                    <div class="space-y-3 mb-4">
+                        <div class="flex justify-between items-center py-2 border-b border-zinc-800">
+                            <span class="text-xs text-zinc-500">Your Value</span>
+                            <span class="mono text-white font-medium" id="my-value">$0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center py-2 border-b border-zinc-800">
+                            <span class="text-xs text-zinc-500">Your Return</span>
+                            <span class="mono font-medium" id="my-return">0.0%</span>
+                        </div>
+                        <div class="flex justify-between items-center py-2 border-b border-zinc-800">
+                            <span class="text-xs text-zinc-500">Shares Held</span>
+                            <span class="mono text-white" id="my-shares">0</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <input type="number" id="txn-amount" placeholder="Amount ($)" min="1" class="w-full px-4 py-2.5 bg-surface-1 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 mono" />
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="doDeposit()" class="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition">Deposit</button>
+                            <button onclick="doWithdraw()" class="py-2.5 bg-zinc-700 hover:bg-zinc-600 text-white text-sm font-medium rounded-lg transition">Withdraw</button>
+                        </div>
+                    </div>
+                    <p class="text-xs text-red-400 mt-2" id="txn-error"></p>
+                    <p class="text-xs text-emerald-400 mt-2" id="txn-success"></p>
+
+                    <button onclick="logout()" class="mt-4 text-xs text-zinc-600 hover:text-zinc-400 transition">Logout</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- How It Works -->
+        <div class="bg-surface-2 border border-zinc-800 rounded-xl p-6 mb-6">
+            <h2 class="text-sm font-medium text-zinc-400 mb-5">System Architecture</h2>
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="flex gap-3">
+                    <div class="w-6 h-6 rounded-md bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span class="text-xs font-bold text-accent-light">1</span>
+                    </div>
+                    <div>
+                        <p class="text-sm text-white font-medium">Universe Filter</p>
+                        <p class="text-xs text-zinc-500 mt-0.5">148 ASX small caps, $100M-$1B market cap</p>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <div class="w-6 h-6 rounded-md bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span class="text-xs font-bold text-accent-light">2</span>
+                    </div>
+                    <div>
+                        <p class="text-sm text-white font-medium">Regime Detection</p>
+                        <p class="text-xs text-zinc-500 mt-0.5">VIX + yield curve. Cash when volatile.</p>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <div class="w-6 h-6 rounded-md bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span class="text-xs font-bold text-accent-light">3</span>
+                    </div>
+                    <div>
+                        <p class="text-sm text-white font-medium">5 Signal Stack</p>
+                        <p class="text-xs text-zinc-500 mt-0.5">Momentum, insider buying, LLM sentiment, risk factors, alt data</p>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <div class="w-6 h-6 rounded-md bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span class="text-xs font-bold text-accent-light">4</span>
+                    </div>
+                    <div>
+                        <p class="text-sm text-white font-medium">Bayesian Aggregation</p>
+                        <p class="text-xs text-zinc-500 mt-0.5">Only trades above 75% posterior probability</p>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <div class="w-6 h-6 rounded-md bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span class="text-xs font-bold text-accent-light">5</span>
+                    </div>
+                    <div>
+                        <p class="text-sm text-white font-medium">Kelly Criterion</p>
+                        <p class="text-xs text-zinc-500 mt-0.5">Half-Kelly sizing. Max 15% per position.</p>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <div class="w-6 h-6 rounded-md bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span class="text-xs font-bold text-accent-light">6</span>
+                    </div>
+                    <div>
+                        <p class="text-sm text-white font-medium">Self-Improving</p>
+                        <p class="text-xs text-zinc-500 mt-0.5">Kills weak signals, weights strong ones higher</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center text-xs text-zinc-600 pt-8 border-t border-zinc-800/50">
+            <p>Built with Claude. Fully autonomous. No human intervention.</p>
+            <p class="mt-2 space-x-4">
+                <a href="/api/portfolio" class="text-zinc-500 hover:text-accent-light transition">API</a>
+                <a href="/api/trades" class="text-zinc-500 hover:text-accent-light transition">Trades</a>
+                <a href="/api/universe" class="text-zinc-500 hover:text-accent-light transition">Universe</a>
+                <a href="/api/fund" class="text-zinc-500 hover:text-accent-light transition">Fund</a>
+                <a href="https://github.com/Sid00721/claude-portfolio" class="text-zinc-500 hover:text-accent-light transition">GitHub</a>
+            </p>
+            <p class="mt-4 text-zinc-700">Paper trading only. Not financial advice. Past performance does not indicate future results.</p>
+        </footer>
+    </main>
+
+    <script>
+        // ─── Portfolio Data ───────────────────────────────────────
+        let chart = null;
+
         async function loadData() {
             try {
-                const res = await fetch('/api/portfolio');
-                const data = await res.json();
+                const [portRes, fundRes] = await Promise.all([
+                    fetch('/api/portfolio'),
+                    fetch('/api/fund'),
+                ]);
+                const data = await portRes.json();
+                const fund = await fundRes.json();
 
                 document.getElementById('nav').textContent = `$${data.nav.toFixed(2)}`;
                 document.getElementById('cash').textContent = `$${data.cash.toFixed(2)}`;
                 document.getElementById('num-positions').textContent = data.positions.length;
 
                 const retEl = document.getElementById('total-return');
-                retEl.textContent = `${data.total_return_pct >= 0 ? '+' : ''}${data.total_return_pct.toFixed(2)}%`;
-                retEl.className = `value ${data.total_return_pct >= 0 ? 'positive' : 'negative'}`;
+                const retVal = data.total_return_pct;
+                retEl.textContent = `${retVal >= 0 ? '+' : ''}${retVal.toFixed(2)}%`;
+                retEl.className = `text-2xl font-bold mono ${retVal >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
 
-                // Positions table
+                // Fund stats
+                document.getElementById('fund-navps').textContent = `$${fund.nav_per_share.toFixed(4)}`;
+                document.getElementById('fund-investors').textContent = fund.num_investors;
+
+                // Positions
                 const tbody = document.getElementById('positions-body');
                 if (data.positions.length > 0) {
                     tbody.innerHTML = data.positions.map(p => `
-                        <tr>
-                            <td><strong>${p.ticker}</strong></td>
-                            <td>${p.quantity}</td>
-                            <td>$${p.avg_cost.toFixed(4)}</td>
-                            <td>$${p.current_price.toFixed(4)}</td>
-                            <td>$${p.market_value.toFixed(2)}</td>
-                            <td class="${p.pnl >= 0 ? 'positive' : 'negative'}">$${p.pnl.toFixed(2)}</td>
-                            <td class="${p.return_pct >= 0 ? 'positive' : 'negative'}">${p.return_pct.toFixed(1)}%</td>
+                        <tr class="hover:bg-surface-3/50 transition">
+                            <td class="px-6 py-3 font-medium text-white">${p.ticker}</td>
+                            <td class="px-4 py-3 text-right mono">${p.quantity}</td>
+                            <td class="px-4 py-3 text-right mono text-zinc-400">$${p.avg_cost.toFixed(3)}</td>
+                            <td class="px-4 py-3 text-right mono">$${p.current_price.toFixed(3)}</td>
+                            <td class="px-4 py-3 text-right mono ${p.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}">$${p.pnl.toFixed(2)}</td>
+                            <td class="px-4 py-3 text-right mono ${p.return_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}">${p.return_pct >= 0 ? '+' : ''}${p.return_pct.toFixed(1)}%</td>
                         </tr>
                     `).join('');
                 }
@@ -344,47 +295,57 @@
                 if (data.equity_curve.length > 0) {
                     document.getElementById('chart-empty').style.display = 'none';
                     const ctx = document.getElementById('equity-chart').getContext('2d');
-                    new Chart(ctx, {
+
+                    if (chart) chart.destroy();
+                    chart = new Chart(ctx, {
                         type: 'line',
                         data: {
                             labels: data.equity_curve.map(p => p.date),
                             datasets: [{
-                                label: 'Portfolio NAV',
                                 data: data.equity_curve.map(p => p.nav),
-                                borderColor: '#7c8aff',
-                                backgroundColor: 'rgba(124, 138, 255, 0.1)',
+                                borderColor: '#6366f1',
+                                backgroundColor: 'rgba(99, 102, 241, 0.05)',
                                 fill: true,
-                                tension: 0.3,
-                                pointRadius: 2,
+                                tension: 0.4,
+                                pointRadius: 0,
+                                borderWidth: 2,
                             }]
                         },
                         options: {
                             responsive: true,
+                            maintainAspectRatio: false,
                             plugins: { legend: { display: false } },
+                            interaction: { intersect: false, mode: 'index' },
                             scales: {
-                                x: { grid: { color: '#1a1a2e' }, ticks: { color: '#666' } },
-                                y: { grid: { color: '#1a1a2e' }, ticks: { color: '#666', callback: v => '$' + v } }
+                                x: {
+                                    grid: { color: 'rgba(63, 63, 70, 0.3)' },
+                                    ticks: { color: '#71717a', font: { size: 10 } }
+                                },
+                                y: {
+                                    grid: { color: 'rgba(63, 63, 70, 0.3)' },
+                                    ticks: { color: '#71717a', font: { size: 10 }, callback: v => '$' + v }
+                                }
                             }
                         }
                     });
                 }
             } catch (e) {
-                console.error('Failed to load data:', e);
+                console.error('Load error:', e);
             }
         }
 
         loadData();
-        setInterval(loadData, 60000);
+        setInterval(loadData, 30000);
 
-        // ─── Fund Logic ───────────────────────────────────────────
+        // ─── Fund Auth ────────────────────────────────────────────
         let token = localStorage.getItem('claude_fund_token');
         if (token) showInvestorDashboard();
 
         function showTab(tab) {
-            document.getElementById('login-form').style.display = tab === 'login' ? 'flex' : 'none';
-            document.getElementById('register-form').style.display = tab === 'register' ? 'flex' : 'none';
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
+            document.getElementById('login-form').classList.toggle('hidden', tab !== 'login');
+            document.getElementById('register-form').classList.toggle('hidden', tab !== 'register');
+            document.getElementById('tab-login').className = `flex-1 py-2 text-xs rounded-md transition ${tab === 'login' ? 'bg-surface-2 text-white' : 'text-zinc-400 hover:text-white'}`;
+            document.getElementById('tab-register').className = `flex-1 py-2 text-xs rounded-md transition ${tab === 'register' ? 'bg-surface-2 text-white' : 'text-zinc-400 hover:text-white'}`;
         }
 
         async function register() {
@@ -400,15 +361,15 @@
             if (data.error) {
                 document.getElementById('reg-error').textContent = data.error;
             } else {
-                // Auto-login after register
                 await loginWith(email, password);
             }
         }
 
         async function login() {
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-            await loginWith(email, password);
+            await loginWith(
+                document.getElementById('login-email').value,
+                document.getElementById('login-password').value
+            );
         }
 
         async function loginWith(email, password) {
@@ -430,29 +391,26 @@
         function logout() {
             token = null;
             localStorage.removeItem('claude_fund_token');
-            document.getElementById('auth-forms').style.display = 'block';
-            document.getElementById('investor-dashboard').style.display = 'none';
+            document.getElementById('auth-forms').classList.remove('hidden');
+            document.getElementById('investor-dashboard').classList.add('hidden');
         }
 
         async function showInvestorDashboard() {
-            document.getElementById('auth-forms').style.display = 'none';
-            document.getElementById('investor-dashboard').style.display = 'block';
+            document.getElementById('auth-forms').classList.add('hidden');
+            document.getElementById('investor-dashboard').classList.remove('hidden');
             await refreshMyPortfolio();
         }
 
         async function refreshMyPortfolio() {
-            const res = await fetch('/api/fund/me', {
-                headers: {'Authorization': `Bearer ${token}`}
-            });
+            const res = await fetch('/api/fund/me', { headers: {'Authorization': `Bearer ${token}`} });
             const data = await res.json();
             if (data.error) { logout(); return; }
 
             document.getElementById('my-value').textContent = `$${data.current_value.toFixed(2)}`;
             const retEl = document.getElementById('my-return');
             retEl.textContent = `${data.return_pct >= 0 ? '+' : ''}${data.return_pct.toFixed(1)}%`;
-            retEl.className = `value ${data.return_pct >= 0 ? 'positive' : 'negative'}`;
+            retEl.className = `mono font-medium ${data.return_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
             document.getElementById('my-shares').textContent = data.shares.toFixed(2);
-            document.getElementById('my-navps').textContent = `$${data.nav_per_share.toFixed(4)}`;
         }
 
         async function doDeposit() {
@@ -464,16 +422,9 @@
                 body: JSON.stringify({amount})
             });
             const data = await res.json();
-            if (data.error) {
-                document.getElementById('txn-error').textContent = data.error;
-                document.getElementById('txn-success').textContent = '';
-            } else {
-                document.getElementById('txn-success').textContent = data.message;
-                document.getElementById('txn-error').textContent = '';
-                document.getElementById('txn-amount').value = '';
-                await refreshMyPortfolio();
-                loadData();
-            }
+            document.getElementById('txn-error').textContent = data.error || '';
+            document.getElementById('txn-success').textContent = data.message || '';
+            if (!data.error) { document.getElementById('txn-amount').value = ''; await refreshMyPortfolio(); loadData(); }
         }
 
         async function doWithdraw() {
@@ -485,16 +436,9 @@
                 body: JSON.stringify({amount})
             });
             const data = await res.json();
-            if (data.error) {
-                document.getElementById('txn-error').textContent = data.error;
-                document.getElementById('txn-success').textContent = '';
-            } else {
-                document.getElementById('txn-success').textContent = data.message;
-                document.getElementById('txn-error').textContent = '';
-                document.getElementById('txn-amount').value = '';
-                await refreshMyPortfolio();
-                loadData();
-            }
+            document.getElementById('txn-error').textContent = data.error || '';
+            document.getElementById('txn-success').textContent = data.message || '';
+            if (!data.error) { document.getElementById('txn-amount').value = ''; await refreshMyPortfolio(); loadData(); }
         }
     </script>
 </body>
