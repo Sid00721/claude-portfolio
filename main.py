@@ -152,7 +152,7 @@ def _run_pipeline_inner():
         result = aggregate(ticker, signals)
 
         log_signal_state(ticker, datetime.now().date().isoformat(), {
-            s.signal_name: {"active": s.signal_active, "strength": s.signal_strength}
+            s.signal_name: {"active": bool(s.signal_active), "strength": float(s.signal_strength)}
             for s in signals
         })
 
