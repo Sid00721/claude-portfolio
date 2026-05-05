@@ -25,20 +25,40 @@ from data.attribution import log_trade, log_signal_state, TradeRecord
 
 
 def run_daily_pipeline():
+    try:
+        _run_pipeline_inner()
+    except Exception as e:
+        log_activity("error", "Pipeline crashed", str(e)[:200], severity="alert")
+
+
+def _run_pipeline_inner():
     log_activity("scan", "Pipeline started", "Beginning daily scan cycle", severity="info")
 
-    # Layer 1: Universe
+    # Layer 1: Universe — try fresh scan, fall back to cached
     log_activity("scan", "Scanning ASX universe", "Filtering $100M-$1B market cap, >50k volume")
-    universe = build_universe()
+    try:
+        universe = build_universe()
+        if not universe.empty:
+            save_to_db(universe)
+            log_activity("scan", f"Universe built: {len(universe)} stocks",
+                         f"Top movers: {', '.join(universe['ticker'].head(5).tolist())}",
+                         severity="success")
+    except Exception as e:
+        log_activity("scan", "Universe scan failed, using cache", str(e)[:100], severity="warning")
+        universe = None
 
-    if universe.empty:
-        log_activity("scan", "Universe empty", "No stocks passed filters today", severity="warning")
-        return
-
-    save_to_db(universe)
-    log_activity("scan", f"Universe built: {len(universe)} stocks",
-                 f"Top movers: {', '.join(universe['ticker'].head(5).tolist())}",
-                 severity="success")
+    # Fall back to cached universe from DB
+    if universe is None or universe.empty:
+        import pandas as pd
+        from data.db import get_db as _get_db
+        with _get_db() as conn:
+            rows = conn.execute("SELECT * FROM universe ORDER BY return_12m DESC").fetchall()
+        if rows:
+            universe = pd.DataFrame([dict(r) for r in rows])
+            log_activity("scan", f"Using cached universe: {len(universe)} stocks", severity="info")
+        else:
+            log_activity("scan", "No universe data available", "Need at least one successful scan first", severity="alert")
+            return
 
     time.sleep(5)
 

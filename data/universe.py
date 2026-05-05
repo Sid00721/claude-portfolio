@@ -71,6 +71,7 @@ def _fetch_info_batch(tickers: list[str]) -> list[dict]:
             })
         except Exception:
             continue
+        time.sleep(0.3)
     return results
 
 
