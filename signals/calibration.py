@@ -155,10 +155,10 @@ def _compute_signal_stats() -> dict[str, SignalStats]:
     with get_db() as conn:
         rows = conn.execute(
             """
-            SELECT signals_at_entry, pnl, closed_at
+            SELECT signals_at_entry, pnl, exit_date
             FROM trades
             WHERE status = 'closed' AND pnl IS NOT NULL
-            ORDER BY closed_at ASC
+            ORDER BY exit_date ASC
             """
         ).fetchall()
 
