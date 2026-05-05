@@ -18,6 +18,7 @@ from signals.regime import get_regime
 from signals.momentum import compute_momentum_signal
 from signals.insider import get_insider_signal
 from signals.bayesian import aggregate, SignalInput
+from signals.calibration import get_active_lrs, recalibrate
 from execution.kelly import size_position
 from execution.broker import get_broker, Order, Side, OrderType
 from data.attribution import log_trade, log_signal_state, TradeRecord
@@ -56,7 +57,9 @@ def run_daily_pipeline():
         return
 
     # Layer 3: Signals
-    log_activity("signal", "Running signal stack", "Momentum + Insider buying scan")
+    lrs = get_active_lrs()
+    log_activity("signal", "Running signal stack",
+                 f"Using calibrated LRs: mom={lrs.get('momentum', 1.4):.2f}, ins={lrs.get('insider', 1.8):.2f}")
     tickers = universe["ticker"].tolist()
 
     momentum_df = compute_momentum_signal(universe)
@@ -95,7 +98,7 @@ def run_daily_pipeline():
                     signal_name="momentum",
                     signal_active=mom_active,
                     signal_strength=float(mom_row.iloc[0]["signal_strength"]),
-                    likelihood_ratio=1.4 if mom_active else 1.0,
+                    likelihood_ratio=lrs.get("momentum", 1.4) if mom_active else 1.0,
                 ))
 
         if ticker in insider_signals:
@@ -104,7 +107,7 @@ def run_daily_pipeline():
                 signal_name="insider",
                 signal_active=ins.signal_fires,
                 signal_strength=ins.signal_strength,
-                likelihood_ratio=1.8 if ins.signal_fires else 1.0,
+                likelihood_ratio=lrs.get("insider", 1.8) if ins.signal_fires else 1.0,
             ))
 
         if not signals:
@@ -207,7 +210,13 @@ def run_daily_pipeline():
 
     broker.disconnect()
 
-    # Layer 7: Attribution
+    # Layer 7: Attribution + Self-Learning
+    calibration = recalibrate()
+    if calibration["changes"]:
+        log_activity("scan", "Self-learning update",
+                     f"Recalibrated {len(calibration['changes'])} signal weights from trade history",
+                     severity="info")
+
     log_activity("scan", "Pipeline complete",
                  f"{len(positions_to_take)} new positions opened. Next run in 24h.",
                  severity="success")
