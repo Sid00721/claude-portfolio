@@ -27,10 +27,18 @@ from data.activity import get_recent_activity, get_activity_since
 
 
 def run_pipeline_job():
-    """Run the daily pipeline. Called by scheduler."""
+    """Run the daily pipeline + position monitor. Called by scheduler."""
     try:
         from main import run_daily_pipeline
         run_daily_pipeline()
+
+        # Run position monitor (check stops, signal fade, exits)
+        try:
+            from execution.monitor import monitor_positions
+            monitor_positions()
+        except Exception as e:
+            print(f"[MONITOR ERROR] {e}")
+
         _snapshot_portfolio()
     except Exception as e:
         print(f"[PIPELINE ERROR] {e}")
@@ -86,10 +94,12 @@ def _snapshot_portfolio():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     scheduler = BackgroundScheduler()
-    # Run daily at 23:30 UTC (09:30 AEST, pre-market)
-    scheduler.add_job(run_pipeline_job, "cron", hour=23, minute=30)
+    # Run 3x daily: 09:30, 12:30, 15:30 AEST (23:30, 02:30, 05:30 UTC)
+    scheduler.add_job(run_pipeline_job, "cron", hour=23, minute=30, id="morning")
+    scheduler.add_job(run_pipeline_job, "cron", hour=2, minute=30, id="midday")
+    scheduler.add_job(run_pipeline_job, "cron", hour=5, minute=30, id="afternoon")
     scheduler.start()
-    print("[SCHEDULER] Daily pipeline scheduled at 23:30 UTC (09:30 AEST)")
+    print("[SCHEDULER] Pipeline runs 3x daily: 09:30, 12:30, 15:30 AEST")
     yield
     scheduler.shutdown()
 

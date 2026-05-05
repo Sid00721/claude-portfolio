@@ -69,7 +69,7 @@ class BayesianResult:
 
     def __post_init__(self) -> None:
         self.conviction_level = _compute_conviction(self.posterior)
-        self.should_trade = self.posterior > 0.75
+        self.should_trade = self.posterior > 0.65
 
 
 def _compute_conviction(posterior: float) -> str:
@@ -78,7 +78,7 @@ def _compute_conviction(posterior: float) -> str:
         return "very_high"
     elif posterior > 0.75:
         return "high"
-    elif posterior >= 0.6:
+    elif posterior >= 0.65:
         return "medium"
     else:
         return "low"

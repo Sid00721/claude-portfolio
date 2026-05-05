@@ -8,8 +8,9 @@ ATR-based risk calculation, and beta exposure limits.
 from dataclasses import dataclass
 from typing import Optional
 
-import yfinance as yf
 import numpy as np
+
+from data.provider import get_price_history
 
 
 @dataclass
@@ -53,21 +54,21 @@ def kelly_fraction_calc(
 
 def calculate_atr(ticker: str, period: int = 14) -> float:
     """
-    Compute 14-day Average True Range for a given ticker using yfinance.
+    Compute 14-day Average True Range for a given ticker using EODHD data.
 
     Returns ATR in dollar terms.
     """
-    data = yf.download(ticker, period="60d", progress=False)
+    df = get_price_history(ticker, period_days=60)
 
-    if data.empty or len(data) < period + 1:
-        raise ValueError(f"Insufficient price data for {ticker} to compute ATR")
+    if df.empty or len(df) < period + 1:
+        return 0.0
 
-    high = data["High"].values.flatten()
-    low = data["Low"].values.flatten()
-    close = data["Close"].values.flatten()
+    high = df["high"].values
+    low = df["low"].values
+    close = df["close"].values
 
     true_ranges = []
-    for i in range(1, len(data)):
+    for i in range(1, len(df)):
         tr = max(
             high[i] - low[i],
             abs(high[i] - close[i - 1]),
@@ -140,14 +141,14 @@ def estimate_beta(ticker: str) -> float:
     """
     Estimate stock beta relative to ASX200 (^AXJO) using 90 days of returns.
     """
-    stock_data = yf.download(ticker, period="90d", progress=False)
-    market_data = yf.download("^AXJO", period="90d", progress=False)
+    stock_data = get_price_history(ticker, period_days=90)
+    market_data = get_price_history("^AXJO", period_days=90)
 
     if stock_data.empty or market_data.empty:
         return 1.0  # Default to market beta if data unavailable
 
-    stock_returns = stock_data["Close"].pct_change().dropna().values.flatten()
-    market_returns = market_data["Close"].pct_change().dropna().values.flatten()
+    stock_returns = stock_data["close"].pct_change().dropna().values
+    market_returns = market_data["close"].pct_change().dropna().values
 
     # Align lengths
     min_len = min(len(stock_returns), len(market_returns))
