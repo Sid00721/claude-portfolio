@@ -110,11 +110,42 @@ def init_db():
                 created_at TEXT DEFAULT (datetime('now'))
             );
 
+            CREATE TABLE IF NOT EXISTS investors (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                name TEXT,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS fund_shares (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                investor_id INTEGER NOT NULL REFERENCES investors(id),
+                shares REAL NOT NULL DEFAULT 0,
+                UNIQUE(investor_id)
+            );
+
+            CREATE TABLE IF NOT EXISTS fund_transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                investor_id INTEGER NOT NULL REFERENCES investors(id),
+                type TEXT NOT NULL CHECK (type IN ('deposit', 'withdrawal')),
+                amount REAL NOT NULL,
+                shares_issued REAL NOT NULL,
+                nav_per_share REAL NOT NULL,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS fund_state (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            );
+
             CREATE INDEX IF NOT EXISTS idx_trades_ticker ON trades(ticker);
             CREATE INDEX IF NOT EXISTS idx_trades_status ON trades(status);
             CREATE INDEX IF NOT EXISTS idx_signal_states_date ON signal_states(date);
             CREATE INDEX IF NOT EXISTS idx_signal_states_ticker ON signal_states(ticker);
             CREATE INDEX IF NOT EXISTS idx_portfolio_date ON portfolio_snapshots(date);
+            CREATE INDEX IF NOT EXISTS idx_fund_transactions_investor ON fund_transactions(investor_id);
         """)
 
 

@@ -110,6 +110,51 @@
         }
         .how-it-works .step-text { color: #aaa; font-size: 0.9rem; line-height: 1.5; }
 
+        .invest-section {
+            background: #12121a;
+            border: 1px solid #1a1a2e;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+        .invest-section h2 { color: #fff; margin-bottom: 0.5rem; }
+        .section-desc { color: #888; font-size: 0.9rem; margin-bottom: 1.5rem; }
+
+        .tab-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+        .tab {
+            background: #1a1a2e; border: 1px solid #2a2a4e; color: #888;
+            padding: 0.5rem 1.5rem; border-radius: 8px; cursor: pointer; font-size: 0.9rem;
+        }
+        .tab.active { background: #2a2a4e; color: #fff; }
+
+        .form-card { display: flex; flex-direction: column; gap: 0.75rem; max-width: 360px; }
+        .form-card input {
+            background: #0a0a0f; border: 1px solid #2a2a4e; color: #fff;
+            padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.9rem;
+        }
+        .form-card button, .deposit-withdraw button {
+            background: #7c8aff; color: #fff; border: none; padding: 0.75rem 1.5rem;
+            border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem;
+        }
+        .form-card button:hover, .deposit-withdraw button:hover { background: #5a6ae0; }
+        .form-error { color: #f87171; font-size: 0.85rem; }
+        .form-success { color: #4ade80; font-size: 0.85rem; }
+
+        .deposit-withdraw {
+            display: flex; gap: 0.75rem; align-items: center; margin-top: 1.5rem; flex-wrap: wrap;
+        }
+        .deposit-withdraw input {
+            background: #0a0a0f; border: 1px solid #2a2a4e; color: #fff;
+            padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.9rem; width: 150px;
+        }
+        .btn-withdraw { background: #374151 !important; }
+        .btn-withdraw:hover { background: #4b5563 !important; }
+        .btn-logout {
+            background: none; border: 1px solid #333; color: #666;
+            padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer;
+            font-size: 0.8rem; margin-top: 1.5rem;
+        }
+
         @media (max-width: 600px) {
             header h1 { font-size: 1.8rem; }
             .metrics { grid-template-columns: repeat(2, 1fr); }
@@ -168,6 +213,64 @@
                         <tr><td colspan="7" class="empty-state">No open positions</td></tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <div class="invest-section" id="invest-section">
+            <h2>Invest in the Fund</h2>
+            <p class="section-desc">Virtual paper money. Your returns track the fund proportionally via unit pricing.</p>
+
+            <div id="auth-forms">
+                <div class="tab-bar">
+                    <button class="tab active" onclick="showTab('login')">Login</button>
+                    <button class="tab" onclick="showTab('register')">Register</button>
+                </div>
+
+                <div id="login-form" class="form-card">
+                    <input type="email" id="login-email" placeholder="Email" />
+                    <input type="password" id="login-password" placeholder="Password" />
+                    <button onclick="login()">Login</button>
+                    <p class="form-error" id="login-error"></p>
+                </div>
+
+                <div id="register-form" class="form-card" style="display:none">
+                    <input type="text" id="reg-name" placeholder="Name" />
+                    <input type="email" id="reg-email" placeholder="Email" />
+                    <input type="password" id="reg-password" placeholder="Password" />
+                    <button onclick="register()">Create Account</button>
+                    <p class="form-error" id="reg-error"></p>
+                </div>
+            </div>
+
+            <div id="investor-dashboard" style="display:none">
+                <div class="metrics" style="margin-top:1rem">
+                    <div class="metric-card">
+                        <div class="label">Your Value</div>
+                        <div class="value" id="my-value">$0.00</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="label">Your Return</div>
+                        <div class="value" id="my-return">0.0%</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="label">Your Shares</div>
+                        <div class="value" id="my-shares">0</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="label">NAV/Share</div>
+                        <div class="value" id="my-navps">$1.00</div>
+                    </div>
+                </div>
+
+                <div class="deposit-withdraw">
+                    <input type="number" id="txn-amount" placeholder="Amount ($)" min="1" step="1" />
+                    <button class="btn-deposit" onclick="doDeposit()">Deposit</button>
+                    <button class="btn-withdraw" onclick="doWithdraw()">Withdraw</button>
+                </div>
+                <p class="form-error" id="txn-error"></p>
+                <p class="form-success" id="txn-success"></p>
+
+                <button class="btn-logout" onclick="logout()">Logout</button>
             </div>
         </div>
 
@@ -272,6 +375,127 @@
 
         loadData();
         setInterval(loadData, 60000);
+
+        // ─── Fund Logic ───────────────────────────────────────────
+        let token = localStorage.getItem('claude_fund_token');
+        if (token) showInvestorDashboard();
+
+        function showTab(tab) {
+            document.getElementById('login-form').style.display = tab === 'login' ? 'flex' : 'none';
+            document.getElementById('register-form').style.display = tab === 'register' ? 'flex' : 'none';
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        async function register() {
+            const name = document.getElementById('reg-name').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            const res = await fetch('/api/fund/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, email, password})
+            });
+            const data = await res.json();
+            if (data.error) {
+                document.getElementById('reg-error').textContent = data.error;
+            } else {
+                // Auto-login after register
+                await loginWith(email, password);
+            }
+        }
+
+        async function login() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            await loginWith(email, password);
+        }
+
+        async function loginWith(email, password) {
+            const res = await fetch('/api/fund/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email, password})
+            });
+            const data = await res.json();
+            if (data.error) {
+                document.getElementById('login-error').textContent = data.error;
+            } else {
+                token = data.token;
+                localStorage.setItem('claude_fund_token', token);
+                showInvestorDashboard();
+            }
+        }
+
+        function logout() {
+            token = null;
+            localStorage.removeItem('claude_fund_token');
+            document.getElementById('auth-forms').style.display = 'block';
+            document.getElementById('investor-dashboard').style.display = 'none';
+        }
+
+        async function showInvestorDashboard() {
+            document.getElementById('auth-forms').style.display = 'none';
+            document.getElementById('investor-dashboard').style.display = 'block';
+            await refreshMyPortfolio();
+        }
+
+        async function refreshMyPortfolio() {
+            const res = await fetch('/api/fund/me', {
+                headers: {'Authorization': `Bearer ${token}`}
+            });
+            const data = await res.json();
+            if (data.error) { logout(); return; }
+
+            document.getElementById('my-value').textContent = `$${data.current_value.toFixed(2)}`;
+            const retEl = document.getElementById('my-return');
+            retEl.textContent = `${data.return_pct >= 0 ? '+' : ''}${data.return_pct.toFixed(1)}%`;
+            retEl.className = `value ${data.return_pct >= 0 ? 'positive' : 'negative'}`;
+            document.getElementById('my-shares').textContent = data.shares.toFixed(2);
+            document.getElementById('my-navps').textContent = `$${data.nav_per_share.toFixed(4)}`;
+        }
+
+        async function doDeposit() {
+            const amount = parseFloat(document.getElementById('txn-amount').value);
+            if (!amount || amount <= 0) return;
+            const res = await fetch('/api/fund/deposit', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+                body: JSON.stringify({amount})
+            });
+            const data = await res.json();
+            if (data.error) {
+                document.getElementById('txn-error').textContent = data.error;
+                document.getElementById('txn-success').textContent = '';
+            } else {
+                document.getElementById('txn-success').textContent = data.message;
+                document.getElementById('txn-error').textContent = '';
+                document.getElementById('txn-amount').value = '';
+                await refreshMyPortfolio();
+                loadData();
+            }
+        }
+
+        async function doWithdraw() {
+            const amount = parseFloat(document.getElementById('txn-amount').value);
+            if (!amount || amount <= 0) return;
+            const res = await fetch('/api/fund/withdraw', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+                body: JSON.stringify({amount})
+            });
+            const data = await res.json();
+            if (data.error) {
+                document.getElementById('txn-error').textContent = data.error;
+                document.getElementById('txn-success').textContent = '';
+            } else {
+                document.getElementById('txn-success').textContent = data.message;
+                document.getElementById('txn-error').textContent = '';
+                document.getElementById('txn-amount').value = '';
+                await refreshMyPortfolio();
+                loadData();
+            }
+        }
     </script>
 </body>
 </html>

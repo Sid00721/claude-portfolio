@@ -19,6 +19,10 @@ import json
 from datetime import datetime
 
 from data.db import get_db
+from data.fund import (
+    register_investor, authenticate_investor, deposit, withdraw,
+    get_investor_portfolio, get_fund_overview, get_nav_per_share,
+)
 
 
 def run_pipeline_job():
@@ -179,6 +183,106 @@ async def api_universe():
             "SELECT * FROM universe ORDER BY return_12m DESC"
         ).fetchall()
     return {"stocks": [dict(r) for r in rows], "count": len(rows)}
+
+
+# ─── Fund API ──────────────────────────────────────────────────────────────────
+
+@app.get("/api/fund")
+async def api_fund():
+    """Public fund overview."""
+    return get_fund_overview()
+
+
+@app.post("/api/fund/register")
+async def api_register(request: Request):
+    body = await request.json()
+    email = body.get("email", "").strip()
+    password = body.get("password", "")
+    name = body.get("name", "")
+
+    if not email or not password:
+        return {"error": "Email and password required"}, 400
+
+    try:
+        investor_id = register_investor(email, password, name)
+        return {"investor_id": investor_id, "message": "Account created"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/api/fund/login")
+async def api_login(request: Request):
+    body = await request.json()
+    email = body.get("email", "")
+    password = body.get("password", "")
+
+    investor_id = authenticate_investor(email, password)
+    if investor_id is None:
+        return {"error": "Invalid credentials"}
+
+    import jwt
+    token = jwt.encode(
+        {"investor_id": investor_id, "email": email},
+        os.environ.get("JWT_SECRET", "claude-portfolio-dev-secret"),
+        algorithm="HS256",
+    )
+    return {"token": token, "investor_id": investor_id}
+
+
+def _get_investor_from_token(request: Request) -> int | None:
+    import jwt
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return None
+    try:
+        payload = jwt.decode(
+            auth[7:],
+            os.environ.get("JWT_SECRET", "claude-portfolio-dev-secret"),
+            algorithms=["HS256"],
+        )
+        return payload["investor_id"]
+    except Exception:
+        return None
+
+
+@app.post("/api/fund/deposit")
+async def api_deposit(request: Request):
+    investor_id = _get_investor_from_token(request)
+    if not investor_id:
+        return {"error": "Unauthorized"}
+
+    body = await request.json()
+    amount = float(body.get("amount", 0))
+
+    try:
+        result = deposit(investor_id, amount)
+        return result
+    except ValueError as e:
+        return {"error": str(e)}
+
+
+@app.post("/api/fund/withdraw")
+async def api_withdraw(request: Request):
+    investor_id = _get_investor_from_token(request)
+    if not investor_id:
+        return {"error": "Unauthorized"}
+
+    body = await request.json()
+    amount = float(body.get("amount", 0))
+
+    try:
+        result = withdraw(investor_id, amount)
+        return result
+    except ValueError as e:
+        return {"error": str(e)}
+
+
+@app.get("/api/fund/me")
+async def api_my_portfolio(request: Request):
+    investor_id = _get_investor_from_token(request)
+    if not investor_id:
+        return {"error": "Unauthorized"}
+    return get_investor_portfolio(investor_id)
 
 
 if __name__ == "__main__":
