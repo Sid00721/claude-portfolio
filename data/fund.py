@@ -91,6 +91,9 @@ def authenticate_investor(email: str, password: str) -> int | None:
     return None
 
 
+MAX_DEPOSIT = 500.0
+
+
 def deposit(investor_id: int, amount: float) -> dict:
     """
     Deposit virtual money into the fund.
@@ -98,6 +101,23 @@ def deposit(investor_id: int, amount: float) -> dict:
     """
     if amount <= 0:
         raise ValueError("Deposit must be positive")
+    if amount > MAX_DEPOSIT:
+        raise ValueError(f"Maximum deposit is ${MAX_DEPOSIT:.0f}")
+
+    # Check total deposited by this investor
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT COALESCE(SUM(amount), 0) as total FROM fund_transactions WHERE investor_id=? AND type='deposit'",
+            (investor_id,),
+        ).fetchone()
+        withs = conn.execute(
+            "SELECT COALESCE(SUM(amount), 0) as total FROM fund_transactions WHERE investor_id=? AND type='withdrawal'",
+            (investor_id,),
+        ).fetchone()
+    net_deposited = float(row["total"]) - float(withs["total"])
+    if net_deposited + amount > MAX_DEPOSIT:
+        remaining = MAX_DEPOSIT - net_deposited
+        raise ValueError(f"Max $500 per investor. You can deposit up to ${remaining:.2f} more.")
 
     nav_per_share = get_nav_per_share()
     shares_issued = amount / nav_per_share

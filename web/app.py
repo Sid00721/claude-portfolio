@@ -86,10 +86,10 @@ def _snapshot_portfolio():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     scheduler = BackgroundScheduler()
-    # Run daily at 00:00 UTC (10:00 AEST)
-    scheduler.add_job(run_pipeline_job, "cron", hour=0, minute=0)
+    # Run daily at 23:30 UTC (09:30 AEST, pre-market)
+    scheduler.add_job(run_pipeline_job, "cron", hour=23, minute=30)
     scheduler.start()
-    print("[SCHEDULER] Daily pipeline scheduled at 00:00 UTC")
+    print("[SCHEDULER] Daily pipeline scheduled at 23:30 UTC (09:30 AEST)")
     yield
     scheduler.shutdown()
 
@@ -141,14 +141,16 @@ async def api_portfolio():
             })
 
     nav = cash + positions_value
-    total_return = (nav - 500.0) / 500.0
+    # Fund return is based on NAV per share vs initial $1.00/share
+    current_navps = get_nav_per_share()
+    total_return = (current_navps - 1.0) / 1.0  # started at $1/share
 
     return {
         "nav": round(nav, 2),
         "cash": round(cash, 2),
         "positions_value": round(positions_value, 2),
         "total_return_pct": round(total_return * 100, 2),
-        "initial_capital": 500.0,
+        "nav_per_share": round(current_navps, 6),
         "positions": pos_list,
         "equity_curve": [{"date": dict(s)["date"], "nav": dict(s)["nav"]} for s in snapshots],
     }
@@ -192,6 +194,16 @@ async def api_activity(since: str = ""):
     if since:
         return {"events": get_activity_since(since)}
     return {"events": get_recent_activity(50)}
+
+
+@app.post("/api/run")
+async def api_trigger_pipeline():
+    """Manually trigger the daily pipeline."""
+    import threading
+    from data.activity import log_activity as _log
+    _log("scan", "Manual pipeline trigger", "Pipeline started by user request", severity="info")
+    threading.Thread(target=run_pipeline_job, daemon=True).start()
+    return {"status": "started", "message": "Pipeline running in background. Watch the activity feed."}
 
 
 # ─── Fund API ──────────────────────────────────────────────────────────────────
