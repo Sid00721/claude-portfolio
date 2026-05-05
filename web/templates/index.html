@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Claude Portfolio</title>
+    <title>The Claude Portfolio — Autonomous ASX Quant Fund</title>
+    <meta name="description" content="A fully autonomous ASX small cap quant fund powered by Claude AI. Watch the agent think in real-time.">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script>
@@ -14,456 +15,746 @@
                     colors: {
                         surface: { 1: '#09090b', 2: '#18181b', 3: '#27272a' },
                         accent: { DEFAULT: '#6366f1', light: '#818cf8' },
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
                     }
                 }
             }
         }
     </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-        body { font-family: 'Inter', sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+        body { font-family: 'Inter', system-ui, sans-serif; }
         .mono { font-family: 'JetBrains Mono', monospace; }
-        .glass { background: rgba(24, 24, 27, 0.8); backdrop-filter: blur(12px); }
-        .glow { box-shadow: 0 0 40px rgba(99, 102, 241, 0.1); }
-        input:focus { outline: none; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.5); }
+
+        .glass {
+            background: rgba(24, 24, 27, 0.75);
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+        }
+
+        .glow {
+            box-shadow: 0 0 60px rgba(99, 102, 241, 0.08), 0 0 120px rgba(99, 102, 241, 0.04);
+        }
+
+        .glow-subtle {
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.05);
+        }
+
+        .card-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card-hover:hover {
+            border-color: rgba(99, 102, 241, 0.3);
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.06);
+            transform: translateY(-1px);
+        }
+
+        input:focus {
+            outline: none;
+            border-color: rgba(99, 102, 241, 0.5);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        /* Activity feed animations */
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .activity-item {
+            animation: slideIn 0.3s ease-out forwards;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4); }
+            50% { box-shadow: 0 0 0 4px rgba(52, 211, 153, 0); }
+        }
+        .live-dot {
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        /* Scrollbar styling */
+        .feed-scroll::-webkit-scrollbar { width: 4px; }
+        .feed-scroll::-webkit-scrollbar-track { background: transparent; }
+        .feed-scroll::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
+        .feed-scroll::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+
+        /* Gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #e4e4e7 0%, #a1a1aa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Chart gradient */
+        .chart-container {
+            position: relative;
+        }
+        .chart-container::before {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border-radius: 0.75rem;
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), transparent, rgba(99, 102, 241, 0.05));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+
+        /* Metric card top border accent */
+        .metric-card {
+            position: relative;
+            overflow: hidden;
+        }
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.3), transparent);
+        }
     </style>
 </head>
 <body class="bg-surface-1 text-zinc-200 min-h-screen antialiased">
 
-    <!-- Nav -->
+    <!-- Fixed Glass Navbar -->
     <nav class="fixed top-0 w-full z-50 glass border-b border-zinc-800/50">
-        <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-accent-light" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2L2 7l8 5 8-5-8-5zM2 13l8 5 8-5M2 17l8 5 8-5"/></svg>
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-accent/30 to-accent/10 flex items-center justify-center border border-accent/20">
+                    <svg class="w-5 h-5 text-accent-light" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
                 </div>
-                <span class="font-semibold text-white">The Claude Portfolio</span>
+                <div>
+                    <span class="font-bold text-white text-lg tracking-tight">The Claude Portfolio</span>
+                    <span class="hidden md:inline text-xs text-zinc-500 ml-3">Autonomous ASX Quant Fund</span>
+                </div>
             </div>
             <div class="flex items-center gap-4">
-                <span class="text-xs text-zinc-500 hidden sm:block">Autonomous ASX Quant Fund</span>
-                <span class="px-2 py-1 text-xs rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">LIVE</span>
+                <span class="hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 live-dot"></span>
+                    LIVE
+                </span>
             </div>
         </div>
     </nav>
 
-    <main class="max-w-6xl mx-auto px-6 pt-20 pb-16">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-20">
 
-        <!-- Hero Metrics -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-            <div class="bg-surface-2 border border-zinc-800 rounded-xl p-5">
-                <p class="text-xs text-zinc-500 uppercase tracking-wider mb-1">Fund NAV</p>
-                <p class="text-2xl font-bold text-white mono" id="nav">$500.00</p>
+        <!-- Hero Section -->
+        <div class="mb-10">
+            <h1 class="text-3xl sm:text-4xl font-bold text-white mb-2 tracking-tight">Portfolio Dashboard</h1>
+            <p class="text-zinc-500 text-sm">Real-time performance of a fully autonomous AI-driven ASX small cap strategy</p>
+        </div>
+
+        <!-- Metric Cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
+            <div class="metric-card bg-surface-2 border border-zinc-800 rounded-xl p-5 sm:p-6 card-hover">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center">
+                        <svg class="w-3.5 h-3.5 text-accent-light" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <p class="text-xs text-zinc-500 uppercase tracking-wider font-medium">Fund NAV</p>
+                </div>
+                <p class="text-2xl sm:text-3xl font-bold text-white mono" id="nav">--</p>
             </div>
-            <div class="bg-surface-2 border border-zinc-800 rounded-xl p-5">
-                <p class="text-xs text-zinc-500 uppercase tracking-wider mb-1">Total Return</p>
-                <p class="text-2xl font-bold mono" id="total-return">+0.00%</p>
+            <div class="metric-card bg-surface-2 border border-zinc-800 rounded-xl p-5 sm:p-6 card-hover">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                        <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                    </div>
+                    <p class="text-xs text-zinc-500 uppercase tracking-wider font-medium">Total Return</p>
+                </div>
+                <p class="text-2xl sm:text-3xl font-bold mono" id="total-return">--</p>
             </div>
-            <div class="bg-surface-2 border border-zinc-800 rounded-xl p-5">
-                <p class="text-xs text-zinc-500 uppercase tracking-wider mb-1">Positions</p>
-                <p class="text-2xl font-bold text-white mono" id="num-positions">0</p>
+            <div class="metric-card bg-surface-2 border border-zinc-800 rounded-xl p-5 sm:p-6 card-hover">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                        <svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                    </div>
+                    <p class="text-xs text-zinc-500 uppercase tracking-wider font-medium">Positions</p>
+                </div>
+                <p class="text-2xl sm:text-3xl font-bold text-white mono" id="num-positions">--</p>
             </div>
-            <div class="bg-surface-2 border border-zinc-800 rounded-xl p-5">
-                <p class="text-xs text-zinc-500 uppercase tracking-wider mb-1">Cash</p>
-                <p class="text-2xl font-bold text-white mono" id="cash">$500.00</p>
+            <div class="metric-card bg-surface-2 border border-zinc-800 rounded-xl p-5 sm:p-6 card-hover">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                        <svg class="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                    </div>
+                    <p class="text-xs text-zinc-500 uppercase tracking-wider font-medium">NAV/Share</p>
+                </div>
+                <p class="text-2xl sm:text-3xl font-bold text-white mono" id="fund-navps">--</p>
             </div>
         </div>
 
-        <!-- Fund Stats Bar -->
-        <div class="flex flex-wrap gap-6 mb-8 px-1 text-sm text-zinc-400">
-            <span>NAV/Share: <span class="text-white mono" id="fund-navps">$1.0000</span></span>
-            <span>Investors: <span class="text-white mono" id="fund-investors">0</span></span>
-            <span>Universe: <span class="text-white mono" id="fund-universe">148 stocks</span></span>
-        </div>
-
-        <!-- Chart -->
-        <div class="bg-surface-2 border border-zinc-800 rounded-xl p-6 mb-6 glow">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-sm font-medium text-zinc-400">Equity Curve</h2>
-                <div class="flex gap-2">
-                    <button class="px-3 py-1 text-xs rounded-lg bg-surface-3 text-zinc-400 hover:text-white transition">1M</button>
-                    <button class="px-3 py-1 text-xs rounded-lg bg-accent/20 text-accent-light">ALL</button>
+        <!-- Equity Curve Chart -->
+        <div class="chart-container bg-surface-2 border border-zinc-800 rounded-xl p-5 sm:p-6 mb-8 glow">
+            <div class="flex items-center justify-between mb-5">
+                <div>
+                    <h2 class="text-base font-semibold text-white">Equity Curve</h2>
+                    <p class="text-xs text-zinc-500 mt-0.5">Net asset value over time</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-zinc-500 mono" id="chart-date-range"></span>
                 </div>
             </div>
-            <div class="h-64">
+            <div class="h-72 sm:h-80">
                 <canvas id="equity-chart"></canvas>
             </div>
-            <p class="text-center text-zinc-600 text-sm mt-4" id="chart-empty">Awaiting first daily pipeline run...</p>
+            <p class="text-center text-zinc-600 text-sm mt-4 hidden" id="chart-empty">Awaiting first daily pipeline run...</p>
         </div>
 
-        <!-- Live Activity Feed -->
-        <div class="bg-surface-2 border border-zinc-800 rounded-xl mb-6 overflow-hidden">
-            <div class="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
-                    <h2 class="text-sm font-medium text-zinc-400">Agent Activity</h2>
+        <!-- Agent Activity Feed -->
+        <div class="bg-surface-2 border border-zinc-800 rounded-xl mb-8 overflow-hidden glow-subtle">
+            <div class="px-5 sm:px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2">
+                        <span class="relative flex h-2.5 w-2.5">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
+                        </span>
+                        <h2 class="text-base font-semibold text-white">Agent Activity</h2>
+                    </div>
+                    <span class="hidden sm:inline px-2 py-0.5 text-[10px] uppercase tracking-widest rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">Real-time</span>
                 </div>
                 <span class="text-xs text-zinc-600 mono" id="feed-count">0 events</span>
             </div>
-            <div class="max-h-80 overflow-y-auto" id="activity-feed">
-                <div class="px-6 py-8 text-center text-zinc-600 text-sm">
-                    Waiting for pipeline run... Agents activate daily at 10:00 AEST.
+            <div class="max-h-[480px] overflow-y-auto feed-scroll" id="activity-feed">
+                <div class="px-6 py-12 text-center">
+                    <div class="w-12 h-12 rounded-full bg-zinc-800/50 flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-6 h-6 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                    </div>
+                    <p class="text-zinc-500 text-sm font-medium">Waiting for agent activity...</p>
+                    <p class="text-zinc-600 text-xs mt-1">Pipeline runs daily at 10:00 AEST</p>
                 </div>
             </div>
         </div>
 
         <!-- Two Column: Positions + Invest -->
-        <div class="grid lg:grid-cols-3 gap-6 mb-6">
+        <div class="grid lg:grid-cols-3 gap-6 mb-8">
 
-            <!-- Positions -->
+            <!-- Positions Table -->
             <div class="lg:col-span-2 bg-surface-2 border border-zinc-800 rounded-xl overflow-hidden">
-                <div class="px-6 py-4 border-b border-zinc-800">
-                    <h2 class="text-sm font-medium text-zinc-400">Open Positions</h2>
+                <div class="px-5 sm:px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
+                    <h2 class="text-base font-semibold text-white">Open Positions</h2>
+                    <span class="text-xs text-zinc-600 mono" id="positions-value">--</span>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
-                            <tr class="text-xs text-zinc-500 uppercase tracking-wider">
-                                <th class="px-6 py-3 text-left">Ticker</th>
-                                <th class="px-4 py-3 text-right">Shares</th>
-                                <th class="px-4 py-3 text-right">Cost</th>
-                                <th class="px-4 py-3 text-right">Price</th>
-                                <th class="px-4 py-3 text-right">P&L</th>
-                                <th class="px-4 py-3 text-right">Return</th>
+                            <tr class="text-[11px] text-zinc-500 uppercase tracking-wider border-b border-zinc-800/50">
+                                <th class="px-5 sm:px-6 py-3 text-left font-medium">Ticker</th>
+                                <th class="px-4 py-3 text-right font-medium">Qty</th>
+                                <th class="px-4 py-3 text-right font-medium">Avg Cost</th>
+                                <th class="px-4 py-3 text-right font-medium">Price</th>
+                                <th class="px-4 py-3 text-right font-medium">Value</th>
+                                <th class="px-4 py-3 text-right font-medium">P&L</th>
+                                <th class="px-4 py-3 text-right font-medium">Return</th>
                             </tr>
                         </thead>
-                        <tbody id="positions-body" class="divide-y divide-zinc-800/50">
-                            <tr><td colspan="6" class="px-6 py-8 text-center text-zinc-600">No open positions yet</td></tr>
+                        <tbody id="positions-body" class="divide-y divide-zinc-800/30">
+                            <tr><td colspan="7" class="px-6 py-10 text-center text-zinc-600 text-sm">No open positions yet</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
             <!-- Invest Card -->
-            <div class="bg-surface-2 border border-zinc-800 rounded-xl p-6">
-                <h2 class="text-sm font-medium text-zinc-400 mb-4">Invest in the Fund</h2>
-                <p class="text-xs text-zinc-600 mb-4">Virtual money. Returns track the fund via unit pricing.</p>
+            <div class="bg-surface-2 border border-zinc-800 rounded-xl p-5 sm:p-6">
+                <div class="mb-5">
+                    <h2 class="text-base font-semibold text-white">Invest in the Fund</h2>
+                    <p class="text-xs text-zinc-500 mt-1">Virtual money. Returns track via unit pricing. Max $500 deposit.</p>
+                </div>
 
                 <div id="auth-forms">
-                    <div class="flex gap-1 mb-4 bg-surface-3 p-1 rounded-lg">
-                        <button onclick="showTab('login')" id="tab-login" class="flex-1 py-2 text-xs rounded-md bg-surface-2 text-white transition">Login</button>
-                        <button onclick="showTab('register')" id="tab-register" class="flex-1 py-2 text-xs rounded-md text-zinc-400 hover:text-white transition">Register</button>
+                    <div class="flex gap-1 mb-5 bg-surface-1 p-1 rounded-lg border border-zinc-800/50">
+                        <button onclick="showTab('login')" id="tab-login" class="flex-1 py-2 text-xs font-medium rounded-md bg-surface-2 text-white border border-zinc-700/50 transition">Login</button>
+                        <button onclick="showTab('register')" id="tab-register" class="flex-1 py-2 text-xs font-medium rounded-md text-zinc-400 hover:text-white transition">Register</button>
                     </div>
 
                     <div id="login-form" class="space-y-3">
-                        <input type="email" id="login-email" placeholder="Email" class="w-full px-4 py-2.5 bg-surface-1 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500" />
-                        <input type="password" id="login-password" placeholder="Password" class="w-full px-4 py-2.5 bg-surface-1 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500" />
-                        <button onclick="login()" class="w-full py-2.5 bg-accent hover:bg-accent/80 text-white text-sm font-medium rounded-lg transition">Login</button>
-                        <p class="text-xs text-red-400" id="login-error"></p>
+                        <input type="email" id="login-email" placeholder="Email" class="w-full px-4 py-2.5 bg-surface-1 border border-zinc-700/50 rounded-lg text-sm text-white placeholder-zinc-500 transition" />
+                        <input type="password" id="login-password" placeholder="Password" class="w-full px-4 py-2.5 bg-surface-1 border border-zinc-700/50 rounded-lg text-sm text-white placeholder-zinc-500 transition" />
+                        <button onclick="login()" class="w-full py-2.5 bg-accent hover:bg-accent/90 text-white text-sm font-medium rounded-lg transition shadow-lg shadow-accent/10">Login</button>
+                        <p class="text-xs text-red-400 min-h-[16px]" id="login-error"></p>
                     </div>
 
                     <div id="register-form" class="space-y-3 hidden">
-                        <input type="text" id="reg-name" placeholder="Name" class="w-full px-4 py-2.5 bg-surface-1 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500" />
-                        <input type="email" id="reg-email" placeholder="Email" class="w-full px-4 py-2.5 bg-surface-1 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500" />
-                        <input type="password" id="reg-password" placeholder="Password" class="w-full px-4 py-2.5 bg-surface-1 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500" />
-                        <button onclick="register()" class="w-full py-2.5 bg-accent hover:bg-accent/80 text-white text-sm font-medium rounded-lg transition">Create Account</button>
-                        <p class="text-xs text-red-400" id="reg-error"></p>
+                        <input type="text" id="reg-name" placeholder="Full Name" class="w-full px-4 py-2.5 bg-surface-1 border border-zinc-700/50 rounded-lg text-sm text-white placeholder-zinc-500 transition" />
+                        <input type="email" id="reg-email" placeholder="Email" class="w-full px-4 py-2.5 bg-surface-1 border border-zinc-700/50 rounded-lg text-sm text-white placeholder-zinc-500 transition" />
+                        <input type="password" id="reg-password" placeholder="Password" class="w-full px-4 py-2.5 bg-surface-1 border border-zinc-700/50 rounded-lg text-sm text-white placeholder-zinc-500 transition" />
+                        <button onclick="register()" class="w-full py-2.5 bg-accent hover:bg-accent/90 text-white text-sm font-medium rounded-lg transition shadow-lg shadow-accent/10">Create Account</button>
+                        <p class="text-xs text-red-400 min-h-[16px]" id="reg-error"></p>
                     </div>
                 </div>
 
                 <div id="investor-dashboard" class="hidden">
-                    <div class="space-y-3 mb-4">
-                        <div class="flex justify-between items-center py-2 border-b border-zinc-800">
-                            <span class="text-xs text-zinc-500">Your Value</span>
-                            <span class="mono text-white font-medium" id="my-value">$0.00</span>
+                    <div class="space-y-1 mb-5">
+                        <div class="flex justify-between items-center py-3 border-b border-zinc-800/50">
+                            <span class="text-xs text-zinc-500 font-medium">Your Value</span>
+                            <span class="mono text-white font-semibold text-lg" id="my-value">$0.00</span>
                         </div>
-                        <div class="flex justify-between items-center py-2 border-b border-zinc-800">
-                            <span class="text-xs text-zinc-500">Your Return</span>
-                            <span class="mono font-medium" id="my-return">0.0%</span>
+                        <div class="flex justify-between items-center py-3 border-b border-zinc-800/50">
+                            <span class="text-xs text-zinc-500 font-medium">Your Return</span>
+                            <span class="mono font-semibold" id="my-return">0.0%</span>
                         </div>
-                        <div class="flex justify-between items-center py-2 border-b border-zinc-800">
-                            <span class="text-xs text-zinc-500">Shares Held</span>
-                            <span class="mono text-white" id="my-shares">0</span>
+                        <div class="flex justify-between items-center py-3 border-b border-zinc-800/50">
+                            <span class="text-xs text-zinc-500 font-medium">Shares Held</span>
+                            <span class="mono text-white text-sm" id="my-shares">0</span>
+                        </div>
+                        <div class="flex justify-between items-center py-3">
+                            <span class="text-xs text-zinc-500 font-medium">Net Deposited</span>
+                            <span class="mono text-zinc-400 text-sm" id="my-deposited">$0.00</span>
                         </div>
                     </div>
 
-                    <div class="space-y-2">
-                        <input type="number" id="txn-amount" placeholder="Amount ($)" min="1" class="w-full px-4 py-2.5 bg-surface-1 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 mono" />
+                    <div class="space-y-3">
+                        <input type="number" id="txn-amount" placeholder="Amount ($)" min="1" max="500" class="w-full px-4 py-2.5 bg-surface-1 border border-zinc-700/50 rounded-lg text-sm text-white placeholder-zinc-500 mono transition" />
                         <div class="grid grid-cols-2 gap-2">
                             <button onclick="doDeposit()" class="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-lg transition">Deposit</button>
                             <button onclick="doWithdraw()" class="py-2.5 bg-zinc-700 hover:bg-zinc-600 text-white text-sm font-medium rounded-lg transition">Withdraw</button>
                         </div>
                     </div>
-                    <p class="text-xs text-red-400 mt-2" id="txn-error"></p>
-                    <p class="text-xs text-emerald-400 mt-2" id="txn-success"></p>
+                    <p class="text-xs text-red-400 mt-2 min-h-[16px]" id="txn-error"></p>
+                    <p class="text-xs text-emerald-400 mt-1 min-h-[16px]" id="txn-success"></p>
 
-                    <button onclick="logout()" class="mt-4 text-xs text-zinc-600 hover:text-zinc-400 transition">Logout</button>
+                    <button onclick="logout()" class="mt-5 text-xs text-zinc-600 hover:text-zinc-400 transition underline underline-offset-2">Sign out</button>
                 </div>
             </div>
         </div>
 
-        <!-- How It Works -->
-        <div class="bg-surface-2 border border-zinc-800 rounded-xl p-6 mb-6">
-            <h2 class="text-sm font-medium text-zinc-400 mb-5">System Architecture</h2>
-            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div class="flex gap-3">
-                    <div class="w-6 h-6 rounded-md bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span class="text-xs font-bold text-accent-light">1</span>
+        <!-- System Architecture -->
+        <div class="bg-surface-2 border border-zinc-800 rounded-xl p-5 sm:p-6 mb-8">
+            <div class="mb-6">
+                <h2 class="text-base font-semibold text-white">System Architecture</h2>
+                <p class="text-xs text-zinc-500 mt-1">7-layer autonomous pipeline running daily at market close</p>
+            </div>
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div class="flex gap-3 p-3 rounded-lg bg-surface-1/50 border border-zinc-800/30">
+                    <div class="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+                        <span class="text-xs font-bold text-accent-light mono">01</span>
                     </div>
                     <div>
                         <p class="text-sm text-white font-medium">Universe Filter</p>
-                        <p class="text-xs text-zinc-500 mt-0.5">148 ASX small caps, $100M-$1B market cap</p>
+                        <p class="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">148 ASX small caps, $100M-$1B mkt cap</p>
                     </div>
                 </div>
-                <div class="flex gap-3">
-                    <div class="w-6 h-6 rounded-md bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span class="text-xs font-bold text-accent-light">2</span>
+                <div class="flex gap-3 p-3 rounded-lg bg-surface-1/50 border border-zinc-800/30">
+                    <div class="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+                        <span class="text-xs font-bold text-accent-light mono">02</span>
                     </div>
                     <div>
                         <p class="text-sm text-white font-medium">Regime Detection</p>
-                        <p class="text-xs text-zinc-500 mt-0.5">VIX + yield curve. Cash when volatile.</p>
+                        <p class="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">VIX + yield curve monitoring</p>
                     </div>
                 </div>
-                <div class="flex gap-3">
-                    <div class="w-6 h-6 rounded-md bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span class="text-xs font-bold text-accent-light">3</span>
+                <div class="flex gap-3 p-3 rounded-lg bg-surface-1/50 border border-zinc-800/30">
+                    <div class="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+                        <span class="text-xs font-bold text-accent-light mono">03</span>
                     </div>
                     <div>
-                        <p class="text-sm text-white font-medium">5 Signal Stack</p>
-                        <p class="text-xs text-zinc-500 mt-0.5">Momentum, insider buying, LLM sentiment, risk factors, alt data</p>
+                        <p class="text-sm text-white font-medium">Signal Generation</p>
+                        <p class="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">Momentum, insider, LLM, risk, alt data</p>
                     </div>
                 </div>
-                <div class="flex gap-3">
-                    <div class="w-6 h-6 rounded-md bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span class="text-xs font-bold text-accent-light">4</span>
+                <div class="flex gap-3 p-3 rounded-lg bg-surface-1/50 border border-zinc-800/30">
+                    <div class="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+                        <span class="text-xs font-bold text-accent-light mono">04</span>
                     </div>
                     <div>
                         <p class="text-sm text-white font-medium">Bayesian Aggregation</p>
-                        <p class="text-xs text-zinc-500 mt-0.5">Only trades above 75% posterior probability</p>
+                        <p class="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">Trades above 75% posterior prob</p>
                     </div>
                 </div>
-                <div class="flex gap-3">
-                    <div class="w-6 h-6 rounded-md bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span class="text-xs font-bold text-accent-light">5</span>
+                <div class="flex gap-3 p-3 rounded-lg bg-surface-1/50 border border-zinc-800/30">
+                    <div class="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+                        <span class="text-xs font-bold text-accent-light mono">05</span>
                     </div>
                     <div>
-                        <p class="text-sm text-white font-medium">Kelly Criterion</p>
-                        <p class="text-xs text-zinc-500 mt-0.5">Half-Kelly sizing. Max 15% per position.</p>
+                        <p class="text-sm text-white font-medium">Position Sizing</p>
+                        <p class="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">Half-Kelly criterion, max 15%/position</p>
                     </div>
                 </div>
-                <div class="flex gap-3">
-                    <div class="w-6 h-6 rounded-md bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span class="text-xs font-bold text-accent-light">6</span>
+                <div class="flex gap-3 p-3 rounded-lg bg-surface-1/50 border border-zinc-800/30">
+                    <div class="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+                        <span class="text-xs font-bold text-accent-light mono">06</span>
+                    </div>
+                    <div>
+                        <p class="text-sm text-white font-medium">Execution Engine</p>
+                        <p class="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">Paper execution via broker API</p>
+                    </div>
+                </div>
+                <div class="flex gap-3 p-3 rounded-lg bg-surface-1/50 border border-zinc-800/30">
+                    <div class="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+                        <span class="text-xs font-bold text-accent-light mono">07</span>
                     </div>
                     <div>
                         <p class="text-sm text-white font-medium">Self-Improving</p>
-                        <p class="text-xs text-zinc-500 mt-0.5">Kills weak signals, weights strong ones higher</p>
+                        <p class="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">Kills weak signals, evolves weights</p>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Footer -->
-        <footer class="text-center text-xs text-zinc-600 pt-8 border-t border-zinc-800/50">
-            <p>Built with Claude. Fully autonomous. No human intervention.</p>
-            <p class="mt-2 space-x-4">
-                <a href="/api/portfolio" class="text-zinc-500 hover:text-accent-light transition">API</a>
-                <a href="/api/trades" class="text-zinc-500 hover:text-accent-light transition">Trades</a>
-                <a href="/api/universe" class="text-zinc-500 hover:text-accent-light transition">Universe</a>
-                <a href="/api/fund" class="text-zinc-500 hover:text-accent-light transition">Fund</a>
-                <a href="https://github.com/Sid00721/claude-portfolio" class="text-zinc-500 hover:text-accent-light transition">GitHub</a>
-            </p>
-            <p class="mt-4 text-zinc-700">Paper trading only. Not financial advice. Past performance does not indicate future results.</p>
+        <footer class="pt-10 pb-4 border-t border-zinc-800/50">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-6 h-6 rounded-md bg-accent/10 flex items-center justify-center">
+                        <svg class="w-3 h-3 text-accent-light" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <span class="text-xs text-zinc-500">Built with Claude. Fully autonomous. No human intervention.</span>
+                </div>
+                <div class="flex items-center gap-5">
+                    <a href="/api/portfolio" class="text-xs text-zinc-500 hover:text-accent-light transition">Portfolio API</a>
+                    <a href="/api/fund" class="text-xs text-zinc-500 hover:text-accent-light transition">Fund API</a>
+                    <a href="/api/activity" class="text-xs text-zinc-500 hover:text-accent-light transition">Activity API</a>
+                    <a href="https://github.com/Sid00721/claude-portfolio" target="_blank" class="text-xs text-zinc-500 hover:text-accent-light transition flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                        GitHub
+                    </a>
+                </div>
+            </div>
+            <p class="text-center text-[11px] text-zinc-700 mt-6">Paper trading only. Not financial advice. Past performance does not indicate future results.</p>
         </footer>
     </main>
 
     <script>
-        // ─── Portfolio Data ───────────────────────────────────────
+        // =====================================================================
+        // The Claude Portfolio - Dashboard JavaScript
+        // =====================================================================
+
         let chart = null;
 
+        // ─── Portfolio & Fund Data ──────────────────────────────────────────
         async function loadData() {
             try {
                 const [portRes, fundRes] = await Promise.all([
-                    fetch('/api/portfolio'),
-                    fetch('/api/fund'),
+                    fetch('/api/portfolio').catch(() => null),
+                    fetch('/api/fund').catch(() => null),
                 ]);
-                const data = await portRes.json();
-                const fund = await fundRes.json();
 
-                document.getElementById('nav').textContent = `$${data.nav.toFixed(2)}`;
-                document.getElementById('cash').textContent = `$${data.cash.toFixed(2)}`;
-                document.getElementById('num-positions').textContent = data.positions.length;
+                if (!portRes || !portRes.ok) {
+                    console.warn('Portfolio API unavailable');
+                    return;
+                }
+
+                let data, fund;
+                try {
+                    data = await portRes.json();
+                } catch (e) {
+                    console.error('Portfolio API returned non-JSON:', e);
+                    return;
+                }
+
+                try {
+                    fund = fundRes && fundRes.ok ? await fundRes.json() : null;
+                } catch (e) {
+                    fund = null;
+                }
+
+                // Update metrics
+                document.getElementById('nav').textContent = `$${Number(data.nav).toFixed(2)}`;
+                document.getElementById('num-positions').textContent = data.positions ? data.positions.length : 0;
 
                 const retEl = document.getElementById('total-return');
-                const retVal = data.total_return_pct;
+                const retVal = Number(data.total_return_pct) || 0;
                 retEl.textContent = `${retVal >= 0 ? '+' : ''}${retVal.toFixed(2)}%`;
-                retEl.className = `text-2xl font-bold mono ${retVal >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+                retEl.className = `text-2xl sm:text-3xl font-bold mono ${retVal >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
 
                 // Fund stats
-                document.getElementById('fund-navps').textContent = `$${fund.nav_per_share.toFixed(4)}`;
-                document.getElementById('fund-investors').textContent = fund.num_investors;
+                if (fund) {
+                    document.getElementById('fund-navps').textContent = `$${Number(fund.nav_per_share).toFixed(4)}`;
+                } else if (data.nav_per_share) {
+                    document.getElementById('fund-navps').textContent = `$${Number(data.nav_per_share).toFixed(4)}`;
+                }
 
-                // Positions
+                // Positions table
                 const tbody = document.getElementById('positions-body');
-                if (data.positions.length > 0) {
+                if (data.positions && data.positions.length > 0) {
+                    document.getElementById('positions-value').textContent = `$${Number(data.positions_value || 0).toFixed(2)} invested`;
                     tbody.innerHTML = data.positions.map(p => `
-                        <tr class="hover:bg-surface-3/50 transition">
-                            <td class="px-6 py-3 font-medium text-white">${p.ticker}</td>
-                            <td class="px-4 py-3 text-right mono">${p.quantity}</td>
-                            <td class="px-4 py-3 text-right mono text-zinc-400">$${p.avg_cost.toFixed(3)}</td>
-                            <td class="px-4 py-3 text-right mono">$${p.current_price.toFixed(3)}</td>
-                            <td class="px-4 py-3 text-right mono ${p.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}">$${p.pnl.toFixed(2)}</td>
-                            <td class="px-4 py-3 text-right mono ${p.return_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}">${p.return_pct >= 0 ? '+' : ''}${p.return_pct.toFixed(1)}%</td>
+                        <tr class="hover:bg-surface-3/30 transition-colors">
+                            <td class="px-5 sm:px-6 py-3.5">
+                                <span class="font-semibold text-white text-sm">${p.ticker}</span>
+                            </td>
+                            <td class="px-4 py-3.5 text-right mono text-zinc-300 text-xs">${p.quantity}</td>
+                            <td class="px-4 py-3.5 text-right mono text-zinc-400 text-xs">$${Number(p.avg_cost).toFixed(3)}</td>
+                            <td class="px-4 py-3.5 text-right mono text-zinc-200 text-xs">$${Number(p.current_price).toFixed(3)}</td>
+                            <td class="px-4 py-3.5 text-right mono text-zinc-300 text-xs">$${Number(p.market_value).toFixed(2)}</td>
+                            <td class="px-4 py-3.5 text-right mono text-xs font-medium ${p.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}">${p.pnl >= 0 ? '+' : ''}$${Number(p.pnl).toFixed(2)}</td>
+                            <td class="px-4 py-3.5 text-right mono text-xs font-medium ${p.return_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}">${p.return_pct >= 0 ? '+' : ''}${Number(p.return_pct).toFixed(1)}%</td>
                         </tr>
                     `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-10 text-center text-zinc-600 text-sm">No open positions yet</td></tr>';
                 }
 
-                // Equity curve
-                if (data.equity_curve.length > 0) {
-                    document.getElementById('chart-empty').style.display = 'none';
-                    const ctx = document.getElementById('equity-chart').getContext('2d');
+                // Equity curve chart
+                if (data.equity_curve && data.equity_curve.length > 0) {
+                    document.getElementById('chart-empty').classList.add('hidden');
+                    const dateRange = document.getElementById('chart-date-range');
+                    const first = data.equity_curve[0].date;
+                    const last = data.equity_curve[data.equity_curve.length - 1].date;
+                    dateRange.textContent = `${first} - ${last}`;
 
-                    if (chart) chart.destroy();
-                    chart = new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: data.equity_curve.map(p => p.date),
-                            datasets: [{
-                                data: data.equity_curve.map(p => p.nav),
-                                borderColor: '#6366f1',
-                                backgroundColor: 'rgba(99, 102, 241, 0.05)',
-                                fill: true,
-                                tension: 0.4,
-                                pointRadius: 0,
-                                borderWidth: 2,
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            interaction: { intersect: false, mode: 'index' },
-                            scales: {
-                                x: {
-                                    grid: { color: 'rgba(63, 63, 70, 0.3)' },
-                                    ticks: { color: '#71717a', font: { size: 10 } }
-                                },
-                                y: {
-                                    grid: { color: 'rgba(63, 63, 70, 0.3)' },
-                                    ticks: { color: '#71717a', font: { size: 10 }, callback: v => '$' + v }
-                                }
-                            }
-                        }
-                    });
+                    renderChart(data.equity_curve);
+                } else {
+                    document.getElementById('chart-empty').classList.remove('hidden');
                 }
             } catch (e) {
-                console.error('Load error:', e);
+                console.error('loadData error:', e);
             }
         }
 
-        loadData();
-        setInterval(loadData, 30000);
+        function renderChart(equityCurve) {
+            const ctx = document.getElementById('equity-chart').getContext('2d');
 
-        // ─── Activity Feed ────────────────────────────────────────
-        let lastActivityTime = '';
+            // Create gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, 320);
+            gradient.addColorStop(0, 'rgba(99, 102, 241, 0.15)');
+            gradient.addColorStop(0.5, 'rgba(99, 102, 241, 0.05)');
+            gradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
+
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: equityCurve.map(p => p.date),
+                    datasets: [{
+                        data: equityCurve.map(p => p.nav),
+                        borderColor: '#6366f1',
+                        backgroundColor: gradient,
+                        fill: true,
+                        tension: 0.35,
+                        pointRadius: 0,
+                        pointHoverRadius: 5,
+                        pointHoverBackgroundColor: '#6366f1',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2,
+                        borderWidth: 2,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#18181b',
+                            borderColor: '#27272a',
+                            borderWidth: 1,
+                            titleColor: '#a1a1aa',
+                            bodyColor: '#fff',
+                            bodyFont: { family: 'JetBrains Mono', size: 12 },
+                            titleFont: { family: 'Inter', size: 11 },
+                            padding: 12,
+                            cornerRadius: 8,
+                            displayColors: false,
+                            callbacks: {
+                                label: (ctx) => `NAV: $${ctx.parsed.y.toFixed(2)}`
+                            }
+                        }
+                    },
+                    interaction: { intersect: false, mode: 'index' },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(63, 63, 70, 0.2)', drawBorder: false },
+                            ticks: {
+                                color: '#52525b',
+                                font: { size: 10, family: 'JetBrains Mono' },
+                                maxTicksLimit: 8,
+                                maxRotation: 0,
+                            },
+                            border: { display: false }
+                        },
+                        y: {
+                            grid: { color: 'rgba(63, 63, 70, 0.2)', drawBorder: false },
+                            ticks: {
+                                color: '#52525b',
+                                font: { size: 10, family: 'JetBrains Mono' },
+                                callback: v => '$' + v.toFixed(0)
+                            },
+                            border: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ─── Activity Feed ──────────────────────────────────────────────────
+        let lastActivityId = null;
+        let totalEvents = 0;
 
         const categoryIcons = {
-            scan: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>',
-            signal: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>',
-            regime: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>',
-            trade: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>',
-            news: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2"/></svg>',
-            error: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>',
+            scan: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>`,
+            signal: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`,
+            regime: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>`,
+            trade: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>`,
+            news: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2"/></svg>`,
+            error: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`,
         };
 
-        const severityColors = {
-            info: 'text-zinc-400 bg-zinc-800/50',
-            success: 'text-emerald-400 bg-emerald-500/10',
-            warning: 'text-amber-400 bg-amber-500/10',
-            alert: 'text-red-400 bg-red-500/10',
+        const severityStyles = {
+            info: { icon: 'text-zinc-400', bg: 'bg-zinc-800/60', border: 'border-zinc-700/30' },
+            success: { icon: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+            warning: { icon: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
+            alert: { icon: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' },
         };
 
         async function loadActivity() {
             try {
-                const url = lastActivityTime ? `/api/activity?since=${encodeURIComponent(lastActivityTime)}` : '/api/activity';
-                const res = await fetch(url);
-                const data = await res.json();
+                const res = await fetch('/api/activity').catch(() => null);
+                if (!res || !res.ok) return;
 
-                if (data.events.length === 0 && !lastActivityTime) return;
+                let data;
+                try {
+                    data = await res.json();
+                } catch (e) {
+                    console.error('Activity API returned non-JSON:', e);
+                    return;
+                }
+
+                if (!data.events || data.events.length === 0) return;
 
                 const feed = document.getElementById('activity-feed');
-                document.getElementById('feed-count').textContent = `${data.events.length} events`;
+                totalEvents = data.events.length;
+                document.getElementById('feed-count').textContent = `${totalEvents} event${totalEvents !== 1 ? 's' : ''}`;
 
-                if (data.events.length > 0) {
-                    if (!lastActivityTime) feed.innerHTML = '';
-                    lastActivityTime = data.events[0].created_at;
+                // Check if we have new events
+                const newestId = data.events[0].id;
+                if (newestId === lastActivityId) return;
+                lastActivityId = newestId;
 
-                    const newHtml = data.events.reverse().map(e => {
-                        const icon = categoryIcons[e.category] || categoryIcons.scan;
-                        const color = severityColors[e.severity] || severityColors.info;
-                        const time = new Date(e.created_at).toLocaleTimeString('en-AU', {hour: '2-digit', minute: '2-digit'});
-                        return `
-                            <div class="px-6 py-3 border-b border-zinc-800/30 hover:bg-surface-3/30 transition flex gap-3 items-start">
-                                <div class="mt-0.5 p-1.5 rounded-md ${color} flex-shrink-0">${icon}</div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-sm text-white font-medium">${e.title}</span>
-                                        ${e.ticker ? `<span class="px-1.5 py-0.5 text-xs rounded bg-surface-3 text-zinc-400 mono">${e.ticker}</span>` : ''}
-                                    </div>
-                                    ${e.detail ? `<p class="text-xs text-zinc-500 mt-0.5 truncate">${e.detail}</p>` : ''}
-                                </div>
-                                <span class="text-xs text-zinc-600 mono flex-shrink-0">${time}</span>
+                // Render all events
+                feed.innerHTML = data.events.map((e, i) => {
+                    const icon = categoryIcons[e.category] || categoryIcons.scan;
+                    const style = severityStyles[e.severity] || severityStyles.info;
+                    const time = formatTime(e.created_at);
+                    const delay = i * 30;
+
+                    return `
+                        <div class="activity-item px-5 sm:px-6 py-3.5 border-b border-zinc-800/20 hover:bg-zinc-800/20 transition-colors flex gap-3 items-start" style="animation-delay: ${delay}ms">
+                            <div class="mt-0.5 p-1.5 rounded-lg ${style.bg} ${style.icon} border ${style.border} flex-shrink-0">
+                                ${icon}
                             </div>
-                        `;
-                    }).join('');
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="text-sm text-white font-medium leading-tight">${escapeHtml(e.title)}</span>
+                                    ${e.ticker ? `<span class="px-1.5 py-0.5 text-[10px] rounded bg-surface-3 text-zinc-400 mono font-medium border border-zinc-700/30">${escapeHtml(e.ticker)}</span>` : ''}
+                                </div>
+                                ${e.detail ? `<p class="text-xs text-zinc-500 mt-1 leading-relaxed line-clamp-2">${escapeHtml(e.detail)}</p>` : ''}
+                            </div>
+                            <span class="text-[11px] text-zinc-600 mono flex-shrink-0 mt-0.5">${time}</span>
+                        </div>
+                    `;
+                }).join('');
 
-                    feed.insertAdjacentHTML('afterbegin', newHtml);
-                }
+                // Auto-scroll to top (newest)
+                feed.scrollTop = 0;
             } catch (e) {
-                console.error('Activity load error:', e);
+                console.error('loadActivity error:', e);
             }
         }
 
-        loadActivity();
-        setInterval(loadActivity, 10000);
+        function formatTime(dateStr) {
+            try {
+                const d = new Date(dateStr);
+                return d.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: false });
+            } catch {
+                return '--:--';
+            }
+        }
 
-        // ─── Fund Auth ────────────────────────────────────────────
+        function escapeHtml(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ─── Fund Auth & Investor Dashboard ─────────────────────────────────
         let token = localStorage.getItem('claude_fund_token');
         if (token) showInvestorDashboard();
 
         function showTab(tab) {
             document.getElementById('login-form').classList.toggle('hidden', tab !== 'login');
             document.getElementById('register-form').classList.toggle('hidden', tab !== 'register');
-            document.getElementById('tab-login').className = `flex-1 py-2 text-xs rounded-md transition ${tab === 'login' ? 'bg-surface-2 text-white' : 'text-zinc-400 hover:text-white'}`;
-            document.getElementById('tab-register').className = `flex-1 py-2 text-xs rounded-md transition ${tab === 'register' ? 'bg-surface-2 text-white' : 'text-zinc-400 hover:text-white'}`;
+            document.getElementById('tab-login').className = `flex-1 py-2 text-xs font-medium rounded-md transition ${tab === 'login' ? 'bg-surface-2 text-white border border-zinc-700/50' : 'text-zinc-400 hover:text-white border border-transparent'}`;
+            document.getElementById('tab-register').className = `flex-1 py-2 text-xs font-medium rounded-md transition ${tab === 'register' ? 'bg-surface-2 text-white border border-zinc-700/50' : 'text-zinc-400 hover:text-white border border-transparent'}`;
+            // Clear errors on tab switch
+            document.getElementById('login-error').textContent = '';
+            document.getElementById('reg-error').textContent = '';
         }
 
         async function register() {
-            const name = document.getElementById('reg-name').value;
-            const email = document.getElementById('reg-email').value;
-            const password = document.getElementById('reg-password').value;
-            const res = await fetch('/api/fund/register', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({name, email, password})
-            });
-            const data = await res.json();
-            if (data.error) {
-                document.getElementById('reg-error').textContent = data.error;
-            } else {
-                await loginWith(email, password);
+            const errEl = document.getElementById('reg-error');
+            errEl.textContent = '';
+            try {
+                const name = document.getElementById('reg-name').value;
+                const email = document.getElementById('reg-email').value;
+                const password = document.getElementById('reg-password').value;
+                if (!name || !email || !password) { errEl.textContent = 'All fields required'; return; }
+
+                const res = await fetch('/api/fund/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name, email, password})
+                });
+                const data = await res.json();
+                if (data.error) {
+                    errEl.textContent = data.error;
+                } else {
+                    await loginWith(email, password);
+                }
+            } catch (e) {
+                errEl.textContent = 'Registration failed. Try again.';
+                console.error('Register error:', e);
             }
         }
 
         async function login() {
-            await loginWith(
-                document.getElementById('login-email').value,
-                document.getElementById('login-password').value
-            );
+            const errEl = document.getElementById('login-error');
+            errEl.textContent = '';
+            try {
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+                if (!email || !password) { errEl.textContent = 'Email and password required'; return; }
+                await loginWith(email, password);
+            } catch (e) {
+                errEl.textContent = 'Login failed. Try again.';
+                console.error('Login error:', e);
+            }
         }
 
         async function loginWith(email, password) {
-            const res = await fetch('/api/fund/login', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({email, password})
-            });
-            const data = await res.json();
-            if (data.error) {
-                document.getElementById('login-error').textContent = data.error;
-            } else {
-                token = data.token;
-                localStorage.setItem('claude_fund_token', token);
-                showInvestorDashboard();
+            const errEl = document.getElementById('login-error');
+            try {
+                const res = await fetch('/api/fund/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email, password})
+                });
+                const data = await res.json();
+                if (data.error) {
+                    errEl.textContent = data.error;
+                } else {
+                    token = data.token;
+                    localStorage.setItem('claude_fund_token', token);
+                    showInvestorDashboard();
+                }
+            } catch (e) {
+                errEl.textContent = 'Connection error. Try again.';
+                console.error('LoginWith error:', e);
             }
         }
 
@@ -481,44 +772,99 @@
         }
 
         async function refreshMyPortfolio() {
-            const res = await fetch('/api/fund/me', { headers: {'Authorization': `Bearer ${token}`} });
-            const data = await res.json();
-            if (data.error) { logout(); return; }
+            try {
+                const res = await fetch('/api/fund/me', { headers: {'Authorization': `Bearer ${token}`} });
+                if (!res.ok) { logout(); return; }
 
-            document.getElementById('my-value').textContent = `$${data.current_value.toFixed(2)}`;
-            const retEl = document.getElementById('my-return');
-            retEl.textContent = `${data.return_pct >= 0 ? '+' : ''}${data.return_pct.toFixed(1)}%`;
-            retEl.className = `mono font-medium ${data.return_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
-            document.getElementById('my-shares').textContent = data.shares.toFixed(2);
+                let data;
+                try {
+                    data = await res.json();
+                } catch (e) { logout(); return; }
+
+                if (data.error) { logout(); return; }
+
+                document.getElementById('my-value').textContent = `$${Number(data.current_value).toFixed(2)}`;
+                const retEl = document.getElementById('my-return');
+                const retPct = Number(data.return_pct) || 0;
+                retEl.textContent = `${retPct >= 0 ? '+' : ''}${retPct.toFixed(2)}%`;
+                retEl.className = `mono font-semibold ${retPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+                document.getElementById('my-shares').textContent = Number(data.shares).toFixed(4);
+                document.getElementById('my-deposited').textContent = `$${Number(data.net_deposited || 0).toFixed(2)}`;
+            } catch (e) {
+                console.error('refreshMyPortfolio error:', e);
+            }
         }
 
         async function doDeposit() {
-            const amount = parseFloat(document.getElementById('txn-amount').value);
-            if (!amount || amount <= 0) return;
-            const res = await fetch('/api/fund/deposit', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-                body: JSON.stringify({amount})
-            });
-            const data = await res.json();
-            document.getElementById('txn-error').textContent = data.error || '';
-            document.getElementById('txn-success').textContent = data.message || '';
-            if (!data.error) { document.getElementById('txn-amount').value = ''; await refreshMyPortfolio(); loadData(); }
+            const errEl = document.getElementById('txn-error');
+            const successEl = document.getElementById('txn-success');
+            errEl.textContent = '';
+            successEl.textContent = '';
+
+            try {
+                const amount = parseFloat(document.getElementById('txn-amount').value);
+                if (!amount || amount <= 0) { errEl.textContent = 'Enter a valid amount'; return; }
+                if (amount > 500) { errEl.textContent = 'Maximum deposit is $500'; return; }
+
+                const res = await fetch('/api/fund/deposit', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+                    body: JSON.stringify({amount})
+                });
+                const data = await res.json();
+                if (data.error) {
+                    errEl.textContent = data.error;
+                } else {
+                    successEl.textContent = data.message || `Deposited $${amount.toFixed(2)} successfully`;
+                    document.getElementById('txn-amount').value = '';
+                    await refreshMyPortfolio();
+                    loadData();
+                }
+            } catch (e) {
+                errEl.textContent = 'Deposit failed. Try again.';
+                console.error('Deposit error:', e);
+            }
         }
 
         async function doWithdraw() {
-            const amount = parseFloat(document.getElementById('txn-amount').value);
-            if (!amount || amount <= 0) return;
-            const res = await fetch('/api/fund/withdraw', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
-                body: JSON.stringify({amount})
-            });
-            const data = await res.json();
-            document.getElementById('txn-error').textContent = data.error || '';
-            document.getElementById('txn-success').textContent = data.message || '';
-            if (!data.error) { document.getElementById('txn-amount').value = ''; await refreshMyPortfolio(); loadData(); }
+            const errEl = document.getElementById('txn-error');
+            const successEl = document.getElementById('txn-success');
+            errEl.textContent = '';
+            successEl.textContent = '';
+
+            try {
+                const amount = parseFloat(document.getElementById('txn-amount').value);
+                if (!amount || amount <= 0) { errEl.textContent = 'Enter a valid amount'; return; }
+
+                const res = await fetch('/api/fund/withdraw', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+                    body: JSON.stringify({amount})
+                });
+                const data = await res.json();
+                if (data.error) {
+                    errEl.textContent = data.error;
+                } else {
+                    successEl.textContent = data.message || `Withdrew $${amount.toFixed(2)} successfully`;
+                    document.getElementById('txn-amount').value = '';
+                    await refreshMyPortfolio();
+                    loadData();
+                }
+            } catch (e) {
+                errEl.textContent = 'Withdrawal failed. Try again.';
+                console.error('Withdraw error:', e);
+            }
         }
+
+        // ─── Initialize ─────────────────────────────────────────────────────
+        loadData();
+        loadActivity();
+
+        // Refresh portfolio data every 30s
+        setInterval(loadData, 30000);
+
+        // Poll activity feed every 5s for real-time feel
+        setInterval(loadActivity, 5000);
     </script>
 </body>
 </html>
