@@ -8,6 +8,7 @@ ATR-based risk calculation, and beta exposure limits.
 from dataclasses import dataclass
 from typing import Optional
 
+import os
 import numpy as np
 
 from data.provider import get_price_history
@@ -24,7 +25,7 @@ class PositionSize:
 
 
 MAX_SINGLE_POSITION_PCT = 0.15
-MIN_POSITION_DOLLARS = 500.0
+MIN_POSITION_DOLLARS = float(os.environ.get("MIN_POSITION", "10"))
 MAX_PORTFOLIO_BETA = 1.5
 
 
