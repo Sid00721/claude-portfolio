@@ -128,8 +128,8 @@ def _run_momentum_signal(universe: pd.DataFrame) -> pd.DataFrame | None:
     try:
         df = compute_momentum_signal(universe)
         if df is not None and not df.empty:
-            top_quintile = len(df[df["momentum_quintile"] == 5])
-            top_tickers = df[df["momentum_quintile"] == 5]["ticker"].head(5).tolist()
+            top_quintile = len(df[df["signal_active"] == True])
+            top_tickers = df[df["signal_active"] == True]["ticker"].head(5).tolist()
             log_activity(
                 "signal",
                 f"Momentum: {top_quintile} stocks in top quintile",
