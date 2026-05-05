@@ -242,7 +242,8 @@ class PaperBroker(BrokerInterface):
 
     def _init_db(self):
         import sqlite3
-        db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "quant.db")
+        data_dir = os.environ.get("DATA_DIR", os.path.dirname(os.path.dirname(__file__)))
+        db_path = os.path.join(data_dir, "quant.db")
         conn = sqlite3.connect(db_path)
         conn.execute("""CREATE TABLE IF NOT EXISTS paper_state (
             key TEXT PRIMARY KEY, value TEXT
@@ -259,7 +260,8 @@ class PaperBroker(BrokerInterface):
 
     def _get_conn(self):
         import sqlite3
-        db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "quant.db")
+        data_dir = os.environ.get("DATA_DIR", os.path.dirname(os.path.dirname(__file__)))
+        db_path = os.path.join(data_dir, "quant.db")
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         return conn

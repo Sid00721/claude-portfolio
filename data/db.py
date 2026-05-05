@@ -8,7 +8,8 @@ import os
 import json
 from contextlib import contextmanager
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "quant.db")
+_data_dir = os.environ.get("DATA_DIR", os.path.dirname(os.path.dirname(__file__)))
+DB_PATH = os.path.join(_data_dir, "quant.db")
 
 
 def get_connection() -> sqlite3.Connection:
