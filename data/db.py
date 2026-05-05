@@ -141,6 +141,17 @@ def init_db():
                 value TEXT
             );
 
+            CREATE TABLE IF NOT EXISTS activity_feed (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                category TEXT NOT NULL,
+                title TEXT NOT NULL,
+                detail TEXT DEFAULT '',
+                ticker TEXT DEFAULT '',
+                severity TEXT DEFAULT 'info',
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_activity_created ON activity_feed(created_at);
             CREATE INDEX IF NOT EXISTS idx_trades_ticker ON trades(ticker);
             CREATE INDEX IF NOT EXISTS idx_trades_status ON trades(status);
             CREATE INDEX IF NOT EXISTS idx_signal_states_date ON signal_states(date);
@@ -150,4 +161,18 @@ def init_db():
         """)
 
 
+def ensure_fund_state():
+    """Ensure fund seed state exists."""
+    with get_db() as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS paper_state (key TEXT PRIMARY KEY, value TEXT)")
+        conn.execute("CREATE TABLE IF NOT EXISTS paper_positions (ticker TEXT PRIMARY KEY, quantity INTEGER, avg_cost REAL)")
+        row = conn.execute("SELECT value FROM paper_state WHERE key='cash'").fetchone()
+        if row is None:
+            conn.execute("INSERT INTO paper_state (key, value) VALUES ('cash', '500.0')")
+        seed = conn.execute("SELECT value FROM fund_state WHERE key='seed_shares'").fetchone()
+        if seed is None:
+            conn.execute("INSERT INTO fund_state (key, value) VALUES ('seed_shares', '500.0')")
+
+
 init_db()
+ensure_fund_state()

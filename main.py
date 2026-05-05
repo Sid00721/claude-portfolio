@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from data.universe import build_universe, save_to_db
+from data.activity import log_activity
 from signals.regime import get_regime
 from signals.momentum import compute_momentum_signal
 from signals.insider import get_insider_signal
@@ -23,36 +24,39 @@ from data.attribution import log_trade, log_signal_state, TradeRecord
 
 
 def run_daily_pipeline():
-    print(f"\n{'='*60}")
-    print(f"ASX QUANT SYSTEM — {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
-    print(f"{'='*60}\n")
+    log_activity("scan", "Pipeline started", "Beginning daily scan cycle", severity="info")
 
     # Layer 1: Universe
-    print("[1/7] Building universe...")
+    log_activity("scan", "Scanning ASX universe", "Filtering $100M-$1B market cap, >50k volume")
     universe = build_universe()
-    print(f"      {len(universe)} stocks in universe")
 
     if universe.empty:
-        print("      No stocks passed filters. Exiting.")
+        log_activity("scan", "Universe empty", "No stocks passed filters today", severity="warning")
         return
 
     save_to_db(universe)
+    log_activity("scan", f"Universe built: {len(universe)} stocks",
+                 f"Top movers: {', '.join(universe['ticker'].head(5).tolist())}",
+                 severity="success")
 
-    time.sleep(5)  # avoid yfinance rate limit after universe scan
+    time.sleep(5)
 
     # Layer 2: Regime
-    print("[2/7] Detecting regime...")
+    log_activity("regime", "Detecting market regime", "Checking VIX, yield curve, sector flows")
     regime = get_regime()
-    print(f"      VIX: {regime.vix_level:.1f} → {regime.vix_regime}")
-    print(f"      Yield spread: {regime.yield_spread:.2f}% → {regime.yield_signal}")
-    print(f"      Position scalar: {regime.position_scalar:.2f}")
+    log_activity("regime",
+                 f"Regime: {regime.vix_regime.upper()} (VIX {regime.vix_level:.1f})",
+                 f"Yield spread: {regime.yield_spread:.2f}% ({regime.yield_signal}). Position scalar: {regime.position_scalar:.0%}",
+                 severity="success" if regime.overall_regime == "risk_on" else "warning")
 
     if regime.overall_regime == "risk_off":
-        print("      RISK OFF — no new positions. Exiting.")
+        log_activity("regime", "RISK OFF — halting trades",
+                     "VIX > 28 or yield curve inverted. Sitting in cash.",
+                     severity="alert")
         return
 
     # Layer 3: Signals
-    print("[3/7] Running signal stack...")
+    log_activity("signal", "Running signal stack", "Momentum + Insider buying scan")
     tickers = universe["ticker"].tolist()
 
     momentum_df = compute_momentum_signal(universe)
@@ -66,17 +70,23 @@ def run_daily_pipeline():
 
     mom_top = len(momentum_df[momentum_df["momentum_quintile"] == 5]) if not momentum_df.empty else 0
     ins_active = sum(1 for s in insider_signals.values() if s.signal_fires)
-    print(f"      Momentum: {mom_top} in top quintile")
-    print(f"      Insider: {ins_active} active signals")
+
+    log_activity("signal", f"Momentum: {mom_top} stocks in top quintile",
+                 f"Top momentum: {', '.join(momentum_df[momentum_df['momentum_quintile'] == 5]['ticker'].head(5).tolist()) if mom_top > 0 else 'none'}")
+
+    if ins_active > 0:
+        insider_tickers = [t for t, s in insider_signals.items() if s.signal_fires]
+        log_activity("signal", f"Insider buying detected: {ins_active} stocks",
+                     f"Insider activity in: {', '.join(insider_tickers[:5])}",
+                     severity="success")
 
     # Layer 4: Bayesian Aggregation
-    print("[4/7] Bayesian aggregation...")
+    log_activity("signal", "Bayesian aggregation", "Combining signals, computing posteriors")
     candidates = []
 
     for ticker in tickers:
         signals = []
 
-        # Momentum signal
         if not momentum_df.empty:
             mom_row = momentum_df[momentum_df["ticker"] == ticker]
             if not mom_row.empty:
@@ -88,7 +98,6 @@ def run_daily_pipeline():
                     likelihood_ratio=1.4 if mom_active else 1.0,
                 ))
 
-        # Insider signal
         if ticker in insider_signals:
             ins = insider_signals[ticker]
             signals.append(SignalInput(
@@ -103,24 +112,29 @@ def run_daily_pipeline():
 
         result = aggregate(ticker, signals)
 
-        log_signal_state(ticker, datetime.utcnow().date().isoformat(), {
+        log_signal_state(ticker, datetime.now().date().isoformat(), {
             s.signal_name: {"active": s.signal_active, "strength": s.signal_strength}
             for s in signals
         })
 
         if result.should_trade:
             candidates.append((result, signals))
-
-    print(f"      {len(candidates)} candidates above 75% posterior")
+            log_activity("signal",
+                         f"HIGH CONVICTION: {ticker} ({result.posterior:.0%})",
+                         f"Signals: {', '.join(s.signal_name for s in signals if s.signal_active)}. Conviction: {result.conviction_level}",
+                         ticker=ticker,
+                         severity="success")
 
     if not candidates:
-        print("      No high-conviction setups today.")
+        log_activity("signal", "No high-conviction setups today",
+                     f"Scanned {len(tickers)} stocks, none passed 75% threshold",
+                     severity="info")
         return
 
     candidates.sort(key=lambda x: x[0].posterior, reverse=True)
 
     # Layer 5: Kelly Sizing
-    print("[5/7] Position sizing...")
+    log_activity("trade", "Sizing positions", f"{len(candidates)} candidates, applying half-Kelly")
     broker = get_broker()
     broker.connect()
     portfolio_value = broker.get_portfolio_value()
@@ -132,7 +146,6 @@ def run_daily_pipeline():
             continue
         price = float(price_row.iloc[0]["price"])
 
-        # Apply regime scalar to portfolio value for sizing
         adjusted_portfolio = portfolio_value * regime.position_scalar
 
         position = size_position(
@@ -144,11 +157,8 @@ def run_daily_pipeline():
 
         if position is not None:
             positions_to_take.append((result, signals, position))
-            print(f"      {result.ticker}: {result.posterior:.1%} posterior → "
-                  f"${position.position_dollars:,.0f} ({position.fractional_kelly_pct:.1%})")
 
     # Layer 6: Execution
-    print("[6/7] Executing trades...")
     for result, signals, position in positions_to_take:
         try:
             order = Order(
@@ -158,14 +168,20 @@ def run_daily_pipeline():
                 order_type=OrderType.MARKET,
             )
             order_id = broker.place_order(order)
-            print(f"      ORDER PLACED: {result.ticker} x{position.shares} (id: {order_id})")
+
+            log_activity("trade",
+                         f"BOUGHT {result.ticker} x{position.shares}",
+                         f"${position.position_dollars:.2f} at ${position.position_dollars/position.shares:.4f}/share. "
+                         f"Posterior: {result.posterior:.0%}, Kelly: {position.fractional_kelly_pct:.1%}",
+                         ticker=result.ticker,
+                         severity="success")
 
             price_row = universe[universe["ticker"] == result.ticker]
             entry_price = float(price_row.iloc[0]["price"])
 
             record = TradeRecord(
                 ticker=result.ticker,
-                entry_date=datetime.utcnow().isoformat(),
+                entry_date=datetime.now().isoformat(),
                 exit_date=None,
                 entry_price=entry_price,
                 exit_price=None,
@@ -186,15 +202,15 @@ def run_daily_pipeline():
             )
             log_trade(record)
         except Exception as e:
-            print(f"      FAILED: {result.ticker} — {e}")
+            log_activity("error", f"Trade failed: {result.ticker}", str(e),
+                         ticker=result.ticker, severity="alert")
 
     broker.disconnect()
 
     # Layer 7: Attribution
-    print("[7/7] Attribution logged.")
-    print(f"\n{'='*60}")
-    print(f"Pipeline complete. {len(positions_to_take)} new positions.")
-    print(f"{'='*60}\n")
+    log_activity("scan", "Pipeline complete",
+                 f"{len(positions_to_take)} new positions opened. Next run in 24h.",
+                 severity="success")
 
 
 if __name__ == "__main__":

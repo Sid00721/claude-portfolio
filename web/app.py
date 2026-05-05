@@ -23,6 +23,7 @@ from data.fund import (
     register_investor, authenticate_investor, deposit, withdraw,
     get_investor_portfolio, get_fund_overview, get_nav_per_share,
 )
+from data.activity import get_recent_activity, get_activity_since
 
 
 def run_pipeline_job():
@@ -184,6 +185,13 @@ async def api_universe():
             "SELECT * FROM universe ORDER BY return_12m DESC"
         ).fetchall()
     return {"stocks": [dict(r) for r in rows], "count": len(rows)}
+
+
+@app.get("/api/activity")
+async def api_activity(since: str = ""):
+    if since:
+        return {"events": get_activity_since(since)}
+    return {"events": get_recent_activity(50)}
 
 
 # ─── Fund API ──────────────────────────────────────────────────────────────────
