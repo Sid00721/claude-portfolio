@@ -668,8 +668,8 @@
 
         function formatTime(dateStr) {
             try {
-                const d = new Date(dateStr);
-                return d.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: false });
+                const d = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
+                return d.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Australia/Sydney' });
             } catch {
                 return '--:--';
             }
