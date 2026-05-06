@@ -26,6 +26,18 @@ from data.fund import (
 from data.activity import get_recent_activity, get_activity_since
 
 
+def _run_price_update():
+    """Update universe prices from EODHD. Runs at 18:00 AEST after market close."""
+    try:
+        from data.refresh import update_prices
+        from data.activity import log_activity as _log
+        update_prices()
+        _snapshot_portfolio()
+        _log("scan", "Prices updated", "End-of-day prices refreshed from EODHD", severity="info")
+    except Exception as e:
+        print(f"[PRICE UPDATE ERROR] {e}")
+
+
 def run_pipeline_job():
     """Run the daily pipeline + position monitor + price update. Called by scheduler."""
     try:
@@ -105,8 +117,10 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(run_pipeline_job, "cron", hour=23, minute=30, id="morning")
     scheduler.add_job(run_pipeline_job, "cron", hour=2, minute=30, id="midday")
     scheduler.add_job(run_pipeline_job, "cron", hour=5, minute=30, id="afternoon")
+    # Price update at 18:00 AEST (08:00 UTC) — after market close + EODHD refresh
+    scheduler.add_job(_run_price_update, "cron", hour=8, minute=0, id="price_update")
     scheduler.start()
-    print("[SCHEDULER] Pipeline runs 3x daily: 09:30, 12:30, 15:30 AEST")
+    print("[SCHEDULER] Pipeline 3x daily + price update at 18:00 AEST")
     yield
     scheduler.shutdown()
 

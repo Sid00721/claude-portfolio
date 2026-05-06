@@ -518,9 +518,22 @@ def _run_pipeline_inner():
 
     adjusted_portfolio = portfolio_value * regime.position_scalar
 
+    # Get existing positions to avoid over-concentrating
+    existing_positions = broker.get_positions() if hasattr(broker, 'get_positions') else {}
+
     positions_to_take = []
     for result, signals in candidates[:10]:  # Cap at 10 positions
         try:
+            # Skip if already holding >30% of portfolio in this ticker
+            if result.ticker in existing_positions:
+                existing_qty = existing_positions[result.ticker]
+                price_row_check = universe[universe["ticker"] == result.ticker]
+                if not price_row_check.empty:
+                    existing_value = existing_qty * float(price_row_check.iloc[0]["price"])
+                    if existing_value > portfolio_value * 0.30:
+                        log_activity("trade", f"Skipping {result.ticker} — already at {existing_value/portfolio_value:.0%} of portfolio", "", ticker=result.ticker, severity="info")
+                        continue
+
             price_row = universe[universe["ticker"] == result.ticker]
             if price_row.empty:
                 continue
