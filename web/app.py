@@ -27,10 +27,17 @@ from data.activity import get_recent_activity, get_activity_since
 
 
 def run_pipeline_job():
-    """Run the daily pipeline + position monitor. Called by scheduler."""
+    """Run the daily pipeline + position monitor + price update. Called by scheduler."""
     try:
         from main import run_daily_pipeline
         run_daily_pipeline()
+
+        # Update universe prices from EODHD
+        try:
+            from data.refresh import update_prices
+            update_prices()
+        except Exception as e:
+            print(f"[PRICE UPDATE ERROR] {e}")
 
         # Run position monitor (check stops, signal fade, exits)
         try:
