@@ -582,6 +582,9 @@ def _run_pipeline_inner():
                 severity="success",
             )
 
+            # Calculate stop price: entry minus 2x ATR
+            stop_price = entry_price - position.risk_per_share if position.risk_per_share > 0 else None
+
             # Attribution record
             record = TradeRecord(
                 ticker=result.ticker,
@@ -590,6 +593,7 @@ def _run_pipeline_inner():
                 entry_price=entry_price,
                 exit_price=None,
                 position_size=float(position.position_dollars),
+                shares=position.shares,
                 pnl=None,
                 return_pct=None,
                 signals_at_entry={
@@ -603,6 +607,7 @@ def _run_pipeline_inner():
                 posterior_at_entry=float(result.posterior),
                 regime_at_entry=regime.overall_regime,
                 kelly_size_pct=float(position.fractional_kelly_pct),
+                stop_price=stop_price,
             )
             log_trade(record)
 
@@ -651,10 +656,8 @@ def _run_recalibration():
     """Run signal weight recalibration from trade history."""
     try:
         calibration = recalibrate()
-        if calibration.get("changes"):
-            changes_summary = ", ".join(
-                f"{k}: {v:.3f}" for k, v in list(calibration["changes"].items())[:5]
-            ) if isinstance(calibration["changes"], dict) else f"{len(calibration['changes'])} signals updated"
+        if calibration.changes:
+            changes_summary = "; ".join(calibration.changes[:5])
             log_activity(
                 "scan",
                 "Self-learning update",

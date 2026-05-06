@@ -23,12 +23,14 @@ class TradeRecord:
     entry_price: float
     exit_price: Optional[float]
     position_size: float
+    shares: Optional[int]
     pnl: Optional[float]
     return_pct: Optional[float]
     signals_at_entry: dict
     posterior_at_entry: float
     regime_at_entry: str
     kelly_size_pct: float
+    stop_price: Optional[float] = None
 
 
 def log_trade(record: TradeRecord) -> None:
@@ -37,9 +39,9 @@ def log_trade(record: TradeRecord) -> None:
         conn.execute(
             """INSERT INTO trades
                (ticker, entry_date, exit_date, entry_price, exit_price,
-                position_size, pnl, return_pct, signals_at_entry,
-                posterior_at_entry, regime_at_entry, kelly_size_pct, status)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                position_size, shares, pnl, return_pct, signals_at_entry,
+                posterior_at_entry, regime_at_entry, kelly_size_pct, stop_price, status)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 record.ticker,
                 record.entry_date,
@@ -47,12 +49,14 @@ def log_trade(record: TradeRecord) -> None:
                 record.entry_price,
                 record.exit_price,
                 record.position_size,
+                record.shares,
                 record.pnl,
                 record.return_pct,
                 json.dumps(record.signals_at_entry),
                 record.posterior_at_entry,
                 record.regime_at_entry,
                 record.kelly_size_pct,
+                record.stop_price,
                 "open" if record.exit_date is None else "closed",
             ),
         )
