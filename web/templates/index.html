@@ -519,11 +519,17 @@
         function renderChart(equityCurve) {
             const ctx = document.getElementById('equity-chart').getContext('2d');
 
-            // Create gradient
             const gradient = ctx.createLinearGradient(0, 0, 0, 320);
             gradient.addColorStop(0, 'rgba(99, 102, 241, 0.15)');
             gradient.addColorStop(0.5, 'rgba(99, 102, 241, 0.05)');
             gradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
+
+            // For few data points, show dots and pad Y-axis
+            const showPoints = equityCurve.length <= 7;
+            const navValues = equityCurve.map(p => p.nav);
+            const minNav = Math.min(...navValues);
+            const maxNav = Math.max(...navValues);
+            const padding = Math.max((maxNav - minNav) * 0.3, maxNav * 0.05);
 
             if (chart) chart.destroy();
             chart = new Chart(ctx, {
@@ -531,13 +537,16 @@
                 data: {
                     labels: equityCurve.map(p => p.date),
                     datasets: [{
-                        data: equityCurve.map(p => p.nav),
+                        data: navValues,
                         borderColor: '#6366f1',
                         backgroundColor: gradient,
                         fill: true,
                         tension: 0.35,
-                        pointRadius: 0,
-                        pointHoverRadius: 5,
+                        pointRadius: showPoints ? 5 : 0,
+                        pointBackgroundColor: '#6366f1',
+                        pointBorderColor: '#18181b',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 6,
                         pointHoverBackgroundColor: '#6366f1',
                         pointHoverBorderColor: '#fff',
                         pointHoverBorderWidth: 2,
@@ -584,7 +593,9 @@
                                 font: { size: 10, family: 'JetBrains Mono' },
                                 callback: v => '$' + v.toFixed(0)
                             },
-                            border: { display: false }
+                            border: { display: false },
+                            min: minNav - padding,
+                            max: maxNav + padding,
                         }
                     }
                 }
